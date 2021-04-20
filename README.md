@@ -93,7 +93,7 @@ The [module-based metrics](https://pytorchlightning.github.io/metrics/references
 
 For the single GPU/CPU case:
 
-``` python
+```python
 import torch
 # import our library
 import torchmetrics 
@@ -121,13 +121,13 @@ Module metric usage remains the same when using multiple GPUs or multiple nodes.
 <details>
   <summary>Example using DDP</summary>
 
-``` python
+```python
 
 import os
 import torch
-from torch import nn
 import torch.distributed as dist
 import torch.multiprocessing as mp
+from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torchmetrics
 
@@ -178,9 +178,8 @@ def metric_ddp(rank, world_size):
     # cleanup
     dist.destroy_process_group()
 
-if __name__ == "__main__":
-    world_size = 2   # number of gpus to parallize over
-    mp.spawn(metric_ddp, args=(world_size,), nprocs=world_size, join=True)
+world_size = 2   # number of gpus to parallize over
+mp.spawn(metric_ddp, args=(world_size,), nprocs=world_size, join=True)
 
 ```
 </details>
@@ -197,9 +196,9 @@ from torchmetrics import Metric
 class MyAccuracy(Metric):
     def __init__(self, dist_sync_on_step=False):
         # call `self.add_state`for every internal state that is needed for the metrics computations
-	# dist_reduce_fx indicates the function that should be used to reduce 
-	# state from multiple processes
-	super().__init__(dist_sync_on_step=dist_sync_on_step)
+        # dist_reduce_fx indicates the function that should be used to reduce 
+        # state from multiple processes
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
 
         self.add_state("correct", default=torch.tensor(0), dist_reduce_fx="sum")
         self.add_state("total", default=torch.tensor(0), dist_reduce_fx="sum")

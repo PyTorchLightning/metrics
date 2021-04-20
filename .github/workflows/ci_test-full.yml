@@ -84,6 +84,7 @@ jobs:
 
     - name: Tests
       run: |
+        phmdoctest README.md --outfile tests/test_readme.py
         python -m pytest torchmetrics tests -v --cov=torchmetrics --junitxml=junit/test-results-${{ runner.os }}-py${{ matrix.python-version }}-${{ matrix.requires }}.xml
 
     - name: Upload pytest test results
