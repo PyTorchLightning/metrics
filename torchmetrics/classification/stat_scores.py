@@ -217,7 +217,7 @@ class StatScores(Metric):
         )
 
         # Update states
-        if self.reduce != "samples" and self.mdmc_reduce != "samplewise":
+        if self.reduce != AverageMethod.SAMPLES and self.mdmc_reduce != MDMCAverageMethod.SAMPLEWISE:
             self.tp += tp
             self.fp += fp
             self.tn += tn
