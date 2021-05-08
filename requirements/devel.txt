@@ -6,3 +6,6 @@
 
 # add the integration dependencies
 -r integrate.txt
+
+# add extra requirements
+-r image.txt

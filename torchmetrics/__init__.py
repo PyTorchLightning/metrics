@@ -36,6 +36,7 @@ from torchmetrics.classification import (  # noqa: F401 E402
     StatScores,
 )
 from torchmetrics.collections import MetricCollection  # noqa: F401 E402
+from torchmetrics.image import FID  # noqa: F401 E402
 from torchmetrics.metric import Metric  # noqa: F401 E402
 from torchmetrics.regression import (  # noqa: F401 E402
     PSNR,

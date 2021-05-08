@@ -5,6 +5,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 from setuptools import find_packages, setup
 
 _PATH_ROOT = os.path.realpath(os.path.dirname(__file__))
+_PATH_REQUIRE = os.path.join(_PATH_ROOT, 'requirements')
 
 
 def _load_py_module(fname, pkg="torchmetrics"):
@@ -21,6 +22,14 @@ long_description = setup_tools._load_readme_description(
     homepage=about.__homepage__,
     version=f'v{about.__version__}',
 )
+
+
+def _prepare_extras():
+    extras = {
+        'image': setup_tools._load_requirements(path_dir=_PATH_REQUIRE, file_name='image.txt'),
+    }
+    return extras
+
 
 # https://packaging.python.org/discussions/install-requires-vs-requirements /
 # keep the meta-data here for simplicity in reading this file... it's not obvious
@@ -72,4 +81,5 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
     ],
+    extras_require=_prepare_extras(),
 )

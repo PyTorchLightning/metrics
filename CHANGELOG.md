@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added pre-gather reduction in the case of `dist_reduce_fx="cat"` to reduce communication cost ([#217](https://github.com/PyTorchLightning/metrics/pull/217))
 
 
+- Added FID metric ([#213](https://github.com/PyTorchLightning/metrics/pull/213))
+
 
 ### Changed
 
