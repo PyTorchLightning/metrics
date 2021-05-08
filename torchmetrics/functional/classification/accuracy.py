@@ -139,9 +139,9 @@ def accuracy(
     Where :math:`y` is a tensor of target values, and :math:`\hat{y}` is a
     tensor of predictions.
 
-    For multi-class and multi-dimensional multi-class data with probability predictions, the
+    For multi-class and multi-dimensional multi-class data with probability or logits predictions, the
     parameter ``top_k`` generalizes this metric to a Top-K accuracy metric: for each sample the
-    top-K highest probability items are considered to find the correct label.
+    top-K highest probability or logits items are considered to find the correct label.
 
     For multi-label and multi-dimensional multi-class inputs, this metric computes the "global"
     accuracy by default, which counts all labels or sub-samples separately. This can be
@@ -151,7 +151,7 @@ def accuracy(
     Accepts all input types listed in :ref:`references/modules:input types`.
 
     Args:
-        preds: Predictions from model (probabilities, or labels)
+        preds: Predictions from model (probabilities, logits or labels)
         target: Ground truth labels
         average:
             Defines the reduction that is applied. Should be one of the following:
@@ -190,11 +190,11 @@ def accuracy(
             Number of classes. Necessary for ``'macro'``, ``'weighted'`` and ``None`` average methods.
 
         threshold:
-            Threshold probability value for transforming probability predictions to binary
-            (0,1) predictions, in the case of binary or multi-label inputs.
+            Threshold for transforming probability or logit predictions to binary (0,1) predictions, in the case
+            of binary or multi-label inputs. Default value of 0.5 corresponds to input being probabilities.
         top_k:
-            Number of highest probability predictions considered to find the correct label, relevant
-            only for (multi-dimensional) multi-class inputs with probability predictions. The
+            Number of highest probability or logit score predictions considered to find the correct label,
+            relevant only for (multi-dimensional) multi-class inputs. The
             default value (``None``) will be interpreted as 1 for these inputs.
 
             Should be left at default (``None``) for all other types of inputs.

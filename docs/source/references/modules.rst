@@ -34,10 +34,10 @@ into these categories (``N`` stands for the batch size and ``C`` for number of c
 
     "Binary", "(N,)", "``float``", "(N,)", "``binary``\*"
     "Multi-class", "(N,)", "``int``", "(N,)", "``int``"
-    "Multi-class with probabilities", "(N, C)", "``float``", "(N,)", "``int``"
+    "Multi-class with logits or probabilities", "(N, C)", "``float``", "(N,)", "``int``"
     "Multi-label", "(N, ...)", "``float``", "(N, ...)", "``binary``\*"
     "Multi-dimensional multi-class", "(N, ...)", "``int``", "(N, ...)", "``int``"
-    "Multi-dimensional multi-class with probabilities", "(N, C, ...)", "``float``", "(N, ...)", "``int``"
+    "Multi-dimensional multi-class with logits or probabilities", "(N, C, ...)", "``float``", "(N, ...)", "``int``"
 
 .. note::
     All dimensions of size 1 (except ``N``) are "squeezed out" at the beginning, so

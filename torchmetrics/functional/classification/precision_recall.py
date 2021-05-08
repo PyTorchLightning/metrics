@@ -66,7 +66,7 @@ def precision(
     multi-dimensional multi-class case. Accepts all inputs listed in :ref:`references/modules:input types`.
 
     Args:
-        preds: Predictions from model (probabilities or labels)
+        preds: Predictions from model (probabilities, logits or labels)
         target: Ground truth values
         average:
             Defines the reduction that is applied. Should be one of the following:
@@ -111,15 +111,14 @@ def precision(
             Number of classes. Necessary for ``'macro'``, ``'weighted'`` and ``None`` average methods.
 
         threshold:
-            Threshold probability value for transforming probability predictions to binary
-            (0,1) predictions, in the case of binary or multi-label inputs.
+            Threshold for transforming probability or logit predictions to binary (0,1) predictions, in the case
+            of binary or multi-label inputs. Default value of 0.5 corresponds to input being probabilities.
         top_k:
-            Number of highest probability entries for each sample to convert to 1s - relevant
-            only for inputs with probability predictions. If this parameter is set for multi-label
-            inputs, it will take precedence over ``threshold``. For (multi-dim) multi-class inputs,
-            this parameter defaults to 1.
+            Number of highest probability or logit score predictions considered to find the correct label,
+            relevant only for (multi-dimensional) multi-class inputs. The
+            default value (``None``) will be interpreted as 1 for these inputs.
 
-            Should be left unset (``None``) for inputs with label predictions.
+            Should be left at default (``None``) for all other types of inputs.
         multiclass:
             Used only in certain special cases, where you want to treat inputs as a different type
             than what they appear to be. See the parameter's
@@ -240,7 +239,7 @@ def recall(
     multi-dimensional multi-class case. Accepts all inputs listed in :ref:`references/modules:input types`.
 
     Args:
-        preds: Predictions from model (probabilities, or labels)
+        preds: Predictions from model (probabilities, logits or labels)
         target: Ground truth values
         average:
             Defines the reduction that is applied. Should be one of the following:
@@ -285,15 +284,14 @@ def recall(
             Number of classes. Necessary for ``'macro'``, ``'weighted'`` and ``None`` average methods.
 
         threshold:
-            Threshold probability value for transforming probability predictions to binary
-            (0,1) predictions, in the case of binary or multi-label inputs
+            Threshold for transforming probability or logit predictions to binary (0,1) predictions, in the case
+            of binary or multi-label inputs. Default value of 0.5 corresponds to input being probabilities.
         top_k:
-            Number of highest probability entries for each sample to convert to 1s - relevant
-            only for inputs with probability predictions. If this parameter is set for multi-label
-            inputs, it will take precedence over ``threshold``. For (multi-dim) multi-class inputs,
-            this parameter defaults to 1.
+            Number of highest probability or logit score predictions considered to find the correct label,
+            relevant only for (multi-dimensional) multi-class inputs. The
+            default value (``None``) will be interpreted as 1 for these inputs.
 
-            Should be left unset (``None``) for inputs with label predictions.
+            Should be left at default (``None``) for all other types of inputs.
         multiclass:
             Used only in certain special cases, where you want to treat inputs as a different type
             than what they appear to be. See the parameter's
@@ -398,7 +396,7 @@ def precision_recall(
     multi-dimensional multi-class case. Accepts all inputs listed in :ref:`references/modules:input types`.
 
     Args:
-        preds: Predictions from model (probabilities, or labels)
+        preds: Predictions from model (probabilities, logits or labels)
         target: Ground truth values
         average:
             Defines the reduction that is applied. Should be one of the following:
@@ -443,15 +441,14 @@ def precision_recall(
             Number of classes. Necessary for ``'macro'``, ``'weighted'`` and ``None`` average methods.
 
         threshold:
-            Threshold probability value for transforming probability predictions to binary
-            (0,1) predictions, in the case of binary or multi-label inputs
+            Threshold for transforming probability or logit predictions to binary (0,1) predictions, in the case
+            of binary or multi-label inputs. Default value of 0.5 corresponds to input being probabilities.
         top_k:
-            Number of highest probability entries for each sample to convert to 1s - relevant
-            only for inputs with probability predictions. If this parameter is set for multi-label
-            inputs, it will take precedence over ``threshold``. For (multi-dim) multi-class inputs,
-            this parameter defaults to 1.
+            Number of highest probability or logit score predictions considered to find the correct label,
+            relevant only for (multi-dimensional) multi-class inputs. The
+            default value (``None``) will be interpreted as 1 for these inputs.
 
-            Should be left unset (``None``) for inputs with label predictions.
+            Should be left at default (``None``) for all other types of inputs.
         multiclass:
             Used only in certain special cases, where you want to treat inputs as a different type
             than what they appear to be. See the parameter's

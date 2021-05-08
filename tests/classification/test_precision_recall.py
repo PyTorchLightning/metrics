@@ -20,12 +20,14 @@ import torch
 from sklearn.metrics import precision_score, recall_score
 from torch import Tensor, tensor
 
-from tests.classification.inputs import _input_binary, _input_binary_prob
+from tests.classification.inputs import _input_binary, _input_binary_logits, _input_binary_prob
 from tests.classification.inputs import _input_multiclass as _input_mcls
+from tests.classification.inputs import _input_multiclass_logits as _input_mcls_logits
 from tests.classification.inputs import _input_multiclass_prob as _input_mcls_prob
 from tests.classification.inputs import _input_multidim_multiclass as _input_mdmc
 from tests.classification.inputs import _input_multidim_multiclass_prob as _input_mdmc_prob
 from tests.classification.inputs import _input_multilabel as _input_mlb
+from tests.classification.inputs import _input_multilabel_logits as _input_mlb_logits
 from tests.classification.inputs import _input_multilabel_prob as _input_mlb_prob
 from tests.helpers import seed_all
 from tests.helpers.testers import NUM_CLASSES, THRESHOLD, MetricTester
@@ -175,10 +177,13 @@ def test_no_support(metric_class, metric_fn):
 @pytest.mark.parametrize(
     "preds, target, num_classes, multiclass, mdmc_average, sk_wrapper",
     [
+        (_input_binary_logits.preds, _input_binary_logits.target, 1, None, None, _sk_prec_recall),
         (_input_binary_prob.preds, _input_binary_prob.target, 1, None, None, _sk_prec_recall),
         (_input_binary.preds, _input_binary.target, 1, False, None, _sk_prec_recall),
+        (_input_mlb_logits.preds, _input_mlb_logits.target, NUM_CLASSES, None, None, _sk_prec_recall),
         (_input_mlb_prob.preds, _input_mlb_prob.target, NUM_CLASSES, None, None, _sk_prec_recall),
         (_input_mlb.preds, _input_mlb.target, NUM_CLASSES, False, None, _sk_prec_recall),
+        (_input_mcls_logits.preds, _input_mcls_logits.target, NUM_CLASSES, None, None, _sk_prec_recall),
         (_input_mcls_prob.preds, _input_mcls_prob.target, NUM_CLASSES, None, None, _sk_prec_recall),
         (_input_mcls.preds, _input_mcls.target, NUM_CLASSES, None, None, _sk_prec_recall),
         (_input_mdmc.preds, _input_mdmc.target, NUM_CLASSES, None, "global", _sk_prec_recall_multidim_multiclass),

@@ -19,12 +19,14 @@ import torch
 from sklearn.metrics import confusion_matrix as sk_confusion_matrix
 from sklearn.metrics import multilabel_confusion_matrix as sk_multilabel_confusion_matrix
 
-from tests.classification.inputs import _input_binary, _input_binary_prob
+from tests.classification.inputs import _input_binary, _input_binary_logits, _input_binary_prob
 from tests.classification.inputs import _input_multiclass as _input_mcls
+from tests.classification.inputs import _input_multiclass_logits as _input_mcls_logits
 from tests.classification.inputs import _input_multiclass_prob as _input_mcls_prob
 from tests.classification.inputs import _input_multidim_multiclass as _input_mdmc
 from tests.classification.inputs import _input_multidim_multiclass_prob as _input_mdmc_prob
 from tests.classification.inputs import _input_multilabel as _input_mlb
+from tests.classification.inputs import _input_multilabel_logits as _input_mlb_logits
 from tests.classification.inputs import _input_multilabel_prob as _input_mlb_prob
 from tests.helpers import seed_all
 from tests.helpers.testers import NUM_CLASSES, THRESHOLD, MetricTester
@@ -112,10 +114,13 @@ def _sk_cm_multidim_multiclass(preds, target, normalize=None):
 @pytest.mark.parametrize(
     "preds, target, sk_metric, num_classes, multilabel",
     [(_input_binary_prob.preds, _input_binary_prob.target, _sk_cm_binary_prob, 2, False),
+     (_input_binary_logits.preds, _input_binary_logits.target, _sk_cm_binary_prob, 2, False),
      (_input_binary.preds, _input_binary.target, _sk_cm_binary, 2, False),
      (_input_mlb_prob.preds, _input_mlb_prob.target, _sk_cm_multilabel_prob, NUM_CLASSES, True),
+     (_input_mlb_logits.preds, _input_mlb_logits.target, _sk_cm_multilabel_prob, NUM_CLASSES, True),
      (_input_mlb.preds, _input_mlb.target, _sk_cm_multilabel, NUM_CLASSES, True),
      (_input_mcls_prob.preds, _input_mcls_prob.target, _sk_cm_multiclass_prob, NUM_CLASSES, False),
+     (_input_mcls_logits.preds, _input_mcls_logits.target, _sk_cm_multiclass_prob, NUM_CLASSES, False),
      (_input_mcls.preds, _input_mcls.target, _sk_cm_multiclass, NUM_CLASSES, False),
      (_input_mdmc_prob.preds, _input_mdmc_prob.target, _sk_cm_multidim_multiclass_prob, NUM_CLASSES, False),
      (_input_mdmc.preds, _input_mdmc.target, _sk_cm_multidim_multiclass, NUM_CLASSES, False)]

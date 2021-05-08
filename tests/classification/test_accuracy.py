@@ -18,12 +18,14 @@ import pytest
 from sklearn.metrics import accuracy_score as sk_accuracy
 from torch import tensor
 
-from tests.classification.inputs import _input_binary, _input_binary_prob
+from tests.classification.inputs import _input_binary, _input_binary_logits, _input_binary_prob
 from tests.classification.inputs import _input_multiclass as _input_mcls
+from tests.classification.inputs import _input_multiclass_logits as _input_mcls_logits
 from tests.classification.inputs import _input_multiclass_prob as _input_mcls_prob
 from tests.classification.inputs import _input_multidim_multiclass as _input_mdmc
 from tests.classification.inputs import _input_multidim_multiclass_prob as _input_mdmc_prob
 from tests.classification.inputs import _input_multilabel as _input_mlb
+from tests.classification.inputs import _input_multilabel_logits as _input_mlb_logits
 from tests.classification.inputs import _input_multilabel_multidim as _input_mlmd
 from tests.classification.inputs import _input_multilabel_multidim_prob as _input_mlmd_prob
 from tests.classification.inputs import _input_multilabel_prob as _input_mlb_prob
@@ -55,13 +57,16 @@ def _sk_accuracy(preds, target, subset_accuracy):
 @pytest.mark.parametrize(
     "preds, target, subset_accuracy",
     [
+        (_input_binary_logits.preds, _input_binary_logits.target, False),
         (_input_binary_prob.preds, _input_binary_prob.target, False),
         (_input_binary.preds, _input_binary.target, False),
         (_input_mlb_prob.preds, _input_mlb_prob.target, True),
+        (_input_mlb_logits.preds, _input_mlb_logits.target, False),
         (_input_mlb_prob.preds, _input_mlb_prob.target, False),
         (_input_mlb.preds, _input_mlb.target, True),
         (_input_mlb.preds, _input_mlb.target, False),
         (_input_mcls_prob.preds, _input_mcls_prob.target, False),
+        (_input_mcls_logits.preds, _input_mcls_logits.target, False),
         (_input_mcls.preds, _input_mcls.target, False),
         (_input_mdmc_prob.preds, _input_mdmc_prob.target, False),
         (_input_mdmc_prob.preds, _input_mdmc_prob.target, True),

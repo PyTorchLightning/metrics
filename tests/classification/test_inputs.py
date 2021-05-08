@@ -218,13 +218,6 @@ def test_threshold():
 ########################################################################
 
 
-@pytest.mark.parametrize("threshold", [-0.5, 0.0, 1.0, 1.5])
-def test_incorrect_threshold(threshold):
-    preds, target = rand(size=(7, )), randint(high=2, size=(7, ))
-    with pytest.raises(ValueError):
-        _input_format_classification(preds, target, threshold=threshold)
-
-
 @pytest.mark.parametrize(
     "preds, target, num_classes, multiclass",
     [
@@ -234,8 +227,6 @@ def test_incorrect_threshold(threshold):
         (randint(high=2, size=(7, )), -randint(high=2, size=(7, )), None, None),
         # Preds negative integers
         (-randint(high=2, size=(7, )), randint(high=2, size=(7, )), None, None),
-        # Negative probabilities
-        (-rand(size=(7, )), randint(high=2, size=(7, )), None, None),
         # multiclass=False and target > 1
         (rand(size=(7, )), randint(low=2, high=4, size=(7, )), None, False),
         # multiclass=False and preds integers with > 1
@@ -254,8 +245,6 @@ def test_incorrect_threshold(threshold):
         (randint(high=2, size=(7, 3, 3, 4)), randint(high=4, size=(7, 3, 3)), None, None),
         # multiclass=False, with C dimension > 2
         (_mc_prob.preds[0], randint(high=2, size=(BATCH_SIZE, )), None, False),
-        # Probs of multiclass preds do not sum up to 1
-        (rand(size=(7, 3, 5)), randint(high=2, size=(7, 5)), None, None),
         # Max target larger or equal to C dimension
         (_mc_prob.preds[0], randint(low=NUM_CLASSES + 1, high=100, size=(BATCH_SIZE, )), None, None),
         # C dimension not equal to num_classes

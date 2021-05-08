@@ -40,8 +40,8 @@ class HammingDistance(Metric):
 
     Args:
         threshold:
-            Threshold probability value for transforming probability predictions to binary
-            (0 or 1) predictions, in the case of binary or multi-label inputs.
+            Threshold for transforming probability or logit predictions to binary (0,1) predictions, in the case
+            of binary or multi-label inputs. Default value of 0.5 corresponds to input being probabilities.
         compute_on_step:
             Forward only calls ``update()`` and return ``None`` if this is set to ``False``.
         dist_sync_on_step:
@@ -96,7 +96,7 @@ class HammingDistance(Metric):
         on input types.
 
         Args:
-            preds: Predictions from model (probabilities, or labels)
+            preds: Predictions from model (probabilities, logits or labels)
             target: Ground truth labels
         """
         correct, total = _hamming_distance_update(preds, target, self.threshold)

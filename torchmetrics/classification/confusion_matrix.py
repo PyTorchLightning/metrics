@@ -24,8 +24,9 @@ class ConfusionMatrix(Metric):
     """
     Computes the `confusion matrix
     <https://scikit-learn.org/stable/modules/model_evaluation.html#confusion-matrix>`_.  Works with binary,
-    multiclass, and multilabel data.  Accepts probabilities from a model output or integer class values in prediction.
-    Works with multi-dimensional preds and target, but it should be noted that additional dimensions will be flattened.
+    multiclass, and multilabel data.  Accepts probabilities or logits from a model output or integer class
+    values in prediction. Works with multi-dimensional preds and target, but it should be noted that
+    additional dimensions will be flattened.
 
     Forward accepts
 
@@ -33,7 +34,7 @@ class ConfusionMatrix(Metric):
     - ``target`` (long tensor): ``(N, ...)``
 
     If preds and target are the same shape and preds is a float tensor, we use the ``self.threshold`` argument
-    to convert into integer labels. This is the case for binary and multi-label probabilities.
+    to convert into integer labels. This is the case for binary and multi-label probabilities or logits.
 
     If preds has an extra dimension as in the case of multi-class scores we perform an argmax on ``dim=1``.
 
@@ -51,7 +52,9 @@ class ConfusionMatrix(Metric):
             - ``'all'``: normalization over the whole matrix
 
         threshold:
-            Threshold value for binary or multi-label probabilites. default: 0.5
+            Threshold for transforming probability or logit predictions to binary (0,1) predictions, in the case
+            of binary or multi-label inputs. Default value of 0.5 corresponds to input being probabilities.
+
         multilabel:
             determines if data is multilabel or not.
         compute_on_step:

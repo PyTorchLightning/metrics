@@ -20,11 +20,13 @@ import torch
 from sklearn.metrics import multilabel_confusion_matrix
 from torch import Tensor, tensor
 
-from tests.classification.inputs import _input_binary, _input_binary_prob, _input_multiclass
+from tests.classification.inputs import _input_binary, _input_binary_logits, _input_binary_prob, _input_multiclass
+from tests.classification.inputs import _input_multiclass_logits as _input_mcls_logits
 from tests.classification.inputs import _input_multiclass_prob as _input_mcls_prob
 from tests.classification.inputs import _input_multidim_multiclass as _input_mdmc
 from tests.classification.inputs import _input_multidim_multiclass_prob as _input_mdmc_prob
 from tests.classification.inputs import _input_multilabel as _input_mcls
+from tests.classification.inputs import _input_multilabel_logits as _input_mlb_logits
 from tests.classification.inputs import _input_multilabel_prob as _input_mlb_prob
 from tests.helpers import seed_all
 from tests.helpers.testers import NUM_CLASSES, THRESHOLD, MetricTester
@@ -136,12 +138,15 @@ def test_wrong_threshold():
 @pytest.mark.parametrize(
     "preds, target, sk_fn, mdmc_reduce, num_classes, multiclass, top_k",
     [
+        (_input_binary_logits.preds, _input_binary_logits.target, _sk_stat_scores, None, 1, None, None),
         (_input_binary_prob.preds, _input_binary_prob.target, _sk_stat_scores, None, 1, None, None),
         (_input_binary.preds, _input_binary.target, _sk_stat_scores, None, 1, False, None),
+        (_input_mlb_logits.preds, _input_mlb_logits.target, _sk_stat_scores, None, NUM_CLASSES, None, None),
         (_input_mlb_prob.preds, _input_mlb_prob.target, _sk_stat_scores, None, NUM_CLASSES, None, None),
         (_input_mlb_prob.preds, _input_mlb_prob.target, _sk_stat_scores, None, NUM_CLASSES, None, 2),
         (_input_mcls.preds, _input_mcls.target, _sk_stat_scores, None, NUM_CLASSES, False, None),
         (_input_mcls_prob.preds, _input_mcls_prob.target, _sk_stat_scores, None, NUM_CLASSES, None, None),
+        (_input_mcls_logits.preds, _input_mcls_logits.target, _sk_stat_scores, None, NUM_CLASSES, None, None),
         (_input_mcls_prob.preds, _input_mcls_prob.target, _sk_stat_scores, None, NUM_CLASSES, None, 2),
         (_input_multiclass.preds, _input_multiclass.target, _sk_stat_scores, None, NUM_CLASSES, None, None),
         (_input_mdmc.preds, _input_mdmc.target, _sk_stat_scores_mdim_mcls, "samplewise", NUM_CLASSES, None, None),

@@ -55,11 +55,11 @@ def hamming_distance(preds: Tensor, target: Tensor, threshold: float = 0.5) -> T
     Accepts all input types listed in :ref:`references/modules:input types`.
 
     Args:
-        preds: Predictions from model
+        preds: Predictions from model (probabilities, logits or labels)
         target: Ground truth
         threshold:
-            Threshold probability value for transforming probability predictions to binary
-            (0 or 1) predictions, in the case of binary or multi-label inputs.
+            Threshold for transforming probability or logit predictions to binary (0,1) predictions, in the case
+            of binary or multi-label inputs. Default value of 0.5 corresponds to input being probabilities.
 
     Example:
         >>> from torchmetrics.functional import hamming_distance

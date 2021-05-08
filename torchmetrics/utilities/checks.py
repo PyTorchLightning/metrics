@@ -44,12 +44,6 @@ def _basic_input_validation(preds: Tensor, target: Tensor, threshold: float, mul
     if not preds.shape[0] == target.shape[0]:
         raise ValueError("The `preds` and `target` should have the same first dimension.")
 
-    if preds_float and (preds.min() < 0 or preds.max() > 1):
-        raise ValueError("The `preds` should be probabilities, but values were detected outside of [0,1] range.")
-
-    if not 0 < threshold < 1:
-        raise ValueError(f"The `threshold` should be a float in the (0,1) interval, got {threshold}")
-
     if multiclass is False and target.max() > 1:
         raise ValueError("If you set `multiclass=False`, then `target` should not exceed 1.")
 
@@ -269,11 +263,6 @@ def _check_classification_inputs(
 
     # Check that shape/types fall into one of the cases
     case, implied_classes = _check_shape_and_type_consistency(preds, target)
-
-    # For (multi-dim) multi-class case with prob preds, check that preds sum up to 1
-    if case in (DataType.MULTICLASS, DataType.MULTIDIM_MULTICLASS) and preds.is_floating_point():
-        if not torch.isclose(preds.sum(dim=1), torch.ones_like(preds.sum(dim=1))).all():
-            raise ValueError("Probabilities in `preds` must sum up to 1 across the `C` dimension.")
 
     # Check consistency with the `C` dimension in case of multi-class data
     if preds.shape != target.shape:
