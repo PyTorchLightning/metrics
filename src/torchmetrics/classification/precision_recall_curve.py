@@ -11,14 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import warnings
+from enum import Enum
 from typing import Any, List, Optional, Tuple, Union
 
+import humanfriendly
 import torch
 from torch import Tensor
 from typing_extensions import Literal
 
 from torchmetrics.functional.classification.precision_recall_curve import (
     _adjust_threshold_arg,
+    _binary_clf_curve,
     _binary_precision_recall_curve_arg_validation,
     _binary_precision_recall_curve_compute,
     _binary_precision_recall_curve_format,
@@ -38,6 +42,26 @@ from torchmetrics.functional.classification.precision_recall_curve import (
 from torchmetrics.metric import Metric
 from torchmetrics.utilities.data import dim_zero_cat
 from torchmetrics.utilities.enums import ClassificationTask
+
+_DYNAMIC_THRESHOLDS_MIN_NSAMPLES = 1024**2  # 1MiB,TODO: find a better way to estimate a reasonable minimum
+
+
+def _budget_bytes_to_nsamples(budget_bytes: int):
+    # assume that both preds and target ("* 2") will be of size (N, 1) and of type float32 (4 bytes)
+    return budget_bytes / (2 * 4)
+
+
+def _validate_memory_budget(budget: int):
+    if budget <= 0:
+        raise ValueError("Budget must be larger than 0.")
+
+    if _budget_bytes_to_nsamples(budget) <= _DYNAMIC_THRESHOLDS_MIN_NSAMPLES:
+        warnings.warn(
+            f"Budget is relatively small ({humanfriendly.format_size(budget, binary=True)}). "
+            "The dynamic mode is recommended for bigger samples."
+        )
+
+    return budget
 
 
 class BinaryPrecisionRecallCurve(Metric):
@@ -88,6 +112,7 @@ class BinaryPrecisionRecallCurve(Metric):
             - If set to an `list` of floats, will use the indicated thresholds in the list as bins for the calculation
             - If set to an 1d `tensor` of floats, will use the indicated thresholds in the tensor as
               bins for the calculation.
+            - If set to a `str`, the value is interpreted as a memory budget and the dynamic mode approach is used.
 
         validate_args: bool indicating if input arguments and tensors should be validated for correctness.
             Set to ``False`` for faster computations.
@@ -112,9 +137,25 @@ class BinaryPrecisionRecallCurve(Metric):
     higher_is_better: Optional[bool] = None
     full_state_update: bool = False
 
+    class _ComputationMode(Enum):
+        """Internal state of the dynamic mode."""
+
+        BINNED = "binned"
+        NON_BINNED = "non-binned"
+        NON_BINNED_DYNAMIC = "non-binned-dynamic"
+
+    @staticmethod
+    def _deduce_computation_mode(thresholds: Optional[Union[int, List[float], Tensor, str]]) -> _ComputationMode:
+        if isinstance(thresholds, str):
+            return BinaryPrecisionRecallCurve._ComputationMode.NON_BINNED_DYNAMIC
+        elif thresholds is None:
+            return BinaryPrecisionRecallCurve._ComputationMode.NON_BINNED
+        else:
+            return BinaryPrecisionRecallCurve._ComputationMode.BINNED
+
     def __init__(
         self,
-        thresholds: Optional[Union[int, List[float], Tensor]] = None,
+        thresholds: Optional[Union[int, List[float], Tensor, str]] = None,
         ignore_index: Optional[int] = None,
         validate_args: bool = True,
         **kwargs: Any,
@@ -126,8 +167,23 @@ class BinaryPrecisionRecallCurve(Metric):
         self.ignore_index = ignore_index
         self.validate_args = validate_args
 
+        self._computation_mode = self._deduce_computation_mode(thresholds)
         thresholds = _adjust_threshold_arg(thresholds)
-        if thresholds is None:
+
+        if self._computation_mode == self._ComputationMode.NON_BINNED_DYNAMIC:
+            self._memory_budget_bytes = _validate_memory_budget(thresholds)
+            # used after the switch to binned mode
+            self.register_buffer("thresholds", None)
+            self.add_state(
+                "confmat",
+                default=torch.zeros(_budget_bytes_to_nsamples(self._memory_budget_bytes), 2, 2, dtype=torch.long),
+                dist_reduce_fx="sum",
+            )
+            # they are deleted after the switch to binned mode
+            self.preds = []
+            self.target = []
+
+        elif thresholds is None:
             self.thresholds = thresholds
             self.add_state("preds", default=[], dist_reduce_fx="cat")
             self.add_state("target", default=[], dist_reduce_fx="cat")
@@ -148,6 +204,23 @@ class BinaryPrecisionRecallCurve(Metric):
         else:
             self.preds.append(state[0])
             self.target.append(state[1])
+
+        if self._computation_mode != self._ComputationMode.NON_BINNED_DYNAMIC:
+            return
+
+        all_preds = dim_zero_cat(self.preds)
+        mem_used = all_preds.element_size() * all_preds.nelement() * 2  # 2 accounts for the target
+
+        if mem_used < self._memory_budget_bytes:
+            return
+
+        # switch to binned mode
+        self.preds, self.target = all_preds, dim_zero_cat(self.target)
+        _, _, self.thresholds = _binary_clf_curve(self.preds, self.target)
+        # if the number of thr
+        self.confmat = _binary_precision_recall_curve_update(self.preds, self.target, self.thresholds)
+        del self.preds, self.target
+        self._computation_mode = self._ComputationMode.BINNED
 
     def compute(self) -> Tuple[Tensor, Tensor, Tensor]:
         """Compute metric."""

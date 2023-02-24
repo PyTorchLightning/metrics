@@ -14,6 +14,7 @@
 
 from typing import List, Optional, Sequence, Tuple, Union
 
+import humanfriendly
 import torch
 from torch import Tensor, tensor
 from torch.nn import functional as F  # noqa: N812
@@ -78,13 +79,20 @@ def _binary_clf_curve(
 
 
 def _adjust_threshold_arg(
-    thresholds: Optional[Union[int, List[float], Tensor]] = None, device: Optional[torch.device] = None
-) -> Optional[Tensor]:
-    """Utility function for converting the threshold arg for list and int to tensor format."""
+    thresholds: Optional[Union[int, List[float], Tensor, str]] = None, device: Optional[torch.device] = None
+) -> Optional[Union[Tensor, int]]:
+    """Utility function for converting the threshold arg.
+
+    - list and int -> tensor
+    - None -> None
+    - str -> int (memory budget) in Mb
+    """
     if isinstance(thresholds, int):
         thresholds = torch.linspace(0, 1, thresholds, device=device)
     if isinstance(thresholds, list):
         thresholds = torch.tensor(thresholds, device=device)
+    if isinstance(thresholds, str):
+        thresholds = humanfriendly.parse_size(thresholds, binary=True)
     return thresholds
 
 
