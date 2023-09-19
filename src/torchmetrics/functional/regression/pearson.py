@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import math
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch import Tensor
 
-from torchmetrics.functional.regression.utils import _check_data_shape_to_num_outputs
+from torchmetrics.functional.regression.utils import _check_data_shape_to_num_outputs, _check_data_shape_to_weights
 from torchmetrics.utilities import rank_zero_warn
 from torchmetrics.utilities.checks import _check_same_shape
 
@@ -32,6 +32,7 @@ def _pearson_corrcoef_update(
     corr_xy: Tensor,
     n_prior: Tensor,
     num_outputs: int,
+    weights: Optional[Tensor] = None,
 ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
     """Update and returns variables required to compute Pearson Correlation Coefficient.
 
@@ -47,34 +48,57 @@ def _pearson_corrcoef_update(
         corr_xy: current covariance estimate between x and y tensor
         n_prior: current number of observed observations
         num_outputs: Number of outputs in multioutput setting
+        weights: weights associated with scores
 
     """
     # Data checking
     _check_same_shape(preds, target)
     _check_data_shape_to_num_outputs(preds, target, num_outputs)
-    n_obs = preds.shape[0]
+    if weights is not None:
+        _check_data_shape_to_weights(preds, weights)
+
+    n_obs = preds.shape[0] if weights is None else weights.sum()
     cond = n_prior.mean() > 0 or n_obs == 1
 
     if cond:
-        mx_new = (n_prior * mean_x + preds.sum(0)) / (n_prior + n_obs)
-        my_new = (n_prior * mean_y + target.sum(0)) / (n_prior + n_obs)
+        if weights is None:
+            mx_new = (n_prior * mean_x + preds.sum(0)) / (n_prior + n_obs)
+            my_new = (n_prior * mean_y + target.sum(0)) / (n_prior + n_obs)
+        else:
+            mx_new = (n_prior * mean_x + torch.matmul(weights, preds)) / (n_prior + n_obs)
+            my_new = (n_prior * mean_y + torch.matmul(weights, target)) / (n_prior + n_obs)
     else:
-        mx_new = preds.mean(0)
-        my_new = target.mean(0)
+        if weights is None:
+            mx_new = preds.mean(0)
+            my_new = target.mean(0)
+        else:
+            mx_new = torch.matmul(weights, preds) / weights.sum()
+            my_new = torch.matmul(weights, target) / weights.sum()
 
     n_prior += n_obs
 
+    # Calculate variances
     if cond:
-        var_x += ((preds - mx_new) * (preds - mean_x)).sum(0)
-        var_y += ((target - my_new) * (target - mean_y)).sum(0)
+        if weights is None:
+            var_x += ((preds - mx_new) * (preds - mean_x)).sum(0)
+            var_y += ((target - my_new) * (target - mean_y)).sum(0)
+        else:
+            var_x += torch.matmul(weights, (preds - mx_new) * (preds - mean_x))
+            var_y += torch.matmul(weights, (preds - my_new) * (preds - mean_y))
     else:
-        var_x += preds.var(0) * (n_obs - 1)
-        var_y += target.var(0) * (n_obs - 1)
-    corr_xy += ((preds - mx_new) * (target - mean_y)).sum(0)
-    mean_x = mx_new
-    mean_y = my_new
+        if weights is None:
+            var_x += preds.var(0) * (n_obs - 1)
+            var_y += target.var(0) * (n_obs - 1)
+        else:
+            var_x += torch.matmul(weights, (preds - mx_new) ** 2)
+            var_y += torch.matmul(weights, (target - my_new) ** 2)
 
-    return mean_x, mean_y, var_x, var_y, corr_xy, n_prior
+    if weights is None:
+        corr_xy += ((preds - mx_new) * (target - my_new)).sum(0)
+    else:
+        corr_xy += torch.matmul(weights, (preds - mx_new) * (target - my_new))
+
+    return mx_new, my_new, var_x, var_y, corr_xy, n_prior
 
 
 def _pearson_corrcoef_compute(
@@ -92,9 +116,6 @@ def _pearson_corrcoef_compute(
         nb: number of observations
 
     """
-    var_x /= nb - 1
-    var_y /= nb - 1
-    corr_xy /= nb - 1
     # if var_x, var_y is float16 and on cpu, make it bfloat16 as sqrt is not supported for float16
     # on cpu, remove this after https://github.com/pytorch/pytorch/issues/54774 is fixed
     if var_x.dtype == torch.float16 and var_x.device == torch.device("cpu"):
@@ -114,18 +135,30 @@ def _pearson_corrcoef_compute(
     return torch.clamp(corrcoef, -1.0, 1.0)
 
 
-def pearson_corrcoef(preds: Tensor, target: Tensor) -> Tensor:
+def pearson_corrcoef(preds: Tensor, target: Tensor, weights: Optional[Tensor] = None) -> Tensor:
     """Compute pearson correlation coefficient.
 
     Args:
-        preds: estimated scores
-        target: ground truth scores
+        preds: torch.Tensor of shape (n_samples,) or (n_samples, n_outputs)
+            Estimated scores
+        target: torch.Tensor of shape (n_samples,) or (n_samples, n_outputs)
+            Ground truth scores
+        weights: torch.Tensor of shape (n_samples,), default=None
+            Sample weights
 
     Example (single output regression):
         >>> from torchmetrics.functional.regression import pearson_corrcoef
         >>> target = torch.tensor([3, -0.5, 2, 7])
         >>> preds = torch.tensor([2.5, 0.0, 2, 8])
         >>> pearson_corrcoef(preds, target)
+        tensor(0.9849)
+
+    Example (weighted single output regression):
+        >>> from torchmetrics.functional.regression import pearson_corrcoef
+        >>> target = torch.tensor([3, -0.5, 2, 7])
+        >>> preds = torch.tensor([2.5, 0.0, 2, 8])
+        >>> weights = torch.tensor([2.5, 0.0, 2, 8])
+        >>> pearson_corrcoef(preds, target, weights)
         tensor(0.9849)
 
     Example (multi output regression):
@@ -135,12 +168,29 @@ def pearson_corrcoef(preds: Tensor, target: Tensor) -> Tensor:
         >>> pearson_corrcoef(preds, target)
         tensor([1., 1.])
 
+    Example (weighted multiple output regression):
+        >>> from torchmetrics.functional.regression import pearson_corrcoef
+        >>> target = torch.tensor([3, -0.5, 2, 7])
+        >>> preds = torch.tensor([2.5, 0.0, 2, 8])
+        >>> weights = torch.tensor([2.5, 0.0, 2, 8])
+        >>> pearson_corrcoef(preds, target, weights)
+        tensor(0.9849)
+
     """
     d = preds.shape[1] if preds.ndim == 2 else 1
     _temp = torch.zeros(d, dtype=preds.dtype, device=preds.device)
     mean_x, mean_y, var_x = _temp.clone(), _temp.clone(), _temp.clone()
     var_y, corr_xy, nb = _temp.clone(), _temp.clone(), _temp.clone()
     _, _, var_x, var_y, corr_xy, nb = _pearson_corrcoef_update(
-        preds, target, mean_x, mean_y, var_x, var_y, corr_xy, nb, num_outputs=1 if preds.ndim == 1 else preds.shape[-1]
+        preds,
+        target,
+        mean_x,
+        mean_y,
+        var_x,
+        var_y,
+        corr_xy,
+        nb,
+        num_outputs=1 if preds.ndim == 1 else preds.shape[-1],
+        weights=weights,
     )
     return _pearson_corrcoef_compute(var_x, var_y, corr_xy, nb)

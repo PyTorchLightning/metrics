@@ -141,7 +141,7 @@ class PearsonCorrCoef(Metric):
         self.add_state("corr_xy", default=torch.zeros(self.num_outputs), dist_reduce_fx=None)
         self.add_state("n_total", default=torch.zeros(self.num_outputs), dist_reduce_fx=None)
 
-    def update(self, preds: Tensor, target: Tensor) -> None:
+    def update(self, preds: Tensor, target: Tensor, weights: Optional[Tensor] = None) -> None:
         """Update state with predictions and targets."""
         self.mean_x, self.mean_y, self.var_x, self.var_y, self.corr_xy, self.n_total = _pearson_corrcoef_update(
             preds,
@@ -153,6 +153,7 @@ class PearsonCorrCoef(Metric):
             self.corr_xy,
             self.n_total,
             self.num_outputs,
+            weights=weights,
         )
 
     def compute(self) -> Tensor:

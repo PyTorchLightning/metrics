@@ -270,7 +270,7 @@ def _functional_test(
         extra_kwargs = {k: v[i] if isinstance(v, Tensor) else v for k, v in kwargs_update.items()}
         tm_result = metric(preds[i], target[i], **extra_kwargs)
         extra_kwargs = {
-            k: v.cpu() if isinstance(v, Tensor) else v
+            k: v[i].cpu() if isinstance(v, Tensor) else v
             for k, v in (extra_kwargs if fragment_kwargs else kwargs_update).items()
         }
         ref_result = reference_metric(
