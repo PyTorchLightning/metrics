@@ -180,12 +180,15 @@ class BinaryPrecisionRecallCurve(Metric):
 
             self.preds.clear()
             self.target.clear()
+            precision, recall, thresholds = _binary_precision_recall_curve_compute(state, self.thresholds)
+            return precision, recall, thresholds if thresholds is not None else torch.tensor([])
         else:
             state = self.confmat
+            precision, recall, thresholds = _binary_precision_recall_curve_compute(state, self.thresholds)
             self.confmat.zero_()
+            return precision, recall, thresholds if thresholds is not None else torch.tensor([])
 
-        precision, recall, thresholds = _binary_precision_recall_curve_compute(state, self.thresholds)
-        return precision, recall, thresholds if thresholds is not None else torch.tensor([])
+
 
     def plot(
         self,
