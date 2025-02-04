@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from torch import Tensor
@@ -27,6 +27,7 @@ def _dice_score_validate_args(
     include_background: bool,
     average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     input_format: Literal["one-hot", "index"] = "one-hot",
+    zero_divide: Union[float, Literal["warn", "nan"]] = 1.0,
 ) -> None:
     """Validate the arguments of the metric."""
     if not isinstance(num_classes, int) or num_classes <= 0:
@@ -38,6 +39,10 @@ def _dice_score_validate_args(
         raise ValueError(f"Expected argument `average` to be one of {allowed_average} or None, but got {average}.")
     if input_format not in ["one-hot", "index"]:
         raise ValueError(f"Expected argument `input_format` to be one of 'one-hot', 'index', but got {input_format}.")
+    if zero_divide not in [1.0, 0.0, "warn", "nan"]:
+        raise ValueError(
+            f"Expected argument `zero_divide` to be one of 1.0, 0.0, 'warn', 'nan', but got {zero_divide}."
+        )
 
 
 def _dice_score_update(
@@ -76,16 +81,21 @@ def _dice_score_compute(
     denominator: Tensor,
     average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     support: Optional[Tensor] = None,
+    zero_division: Union[float, Literal["warn", "nan"]] = 1.0,
 ) -> Tensor:
     """Compute the Dice score from the numerator and denominator."""
+    # If both numerator and denominator are 0, the dice score is 0
+    if torch.all(numerator == 0) and torch.all(denominator == 0):
+        return torch.tensor(0.0, device=numerator.device, dtype=torch.float)
+
     if average == "micro":
         numerator = torch.sum(numerator, dim=-1)
         denominator = torch.sum(denominator, dim=-1)
-    dice = _safe_divide(numerator, denominator, zero_division=1.0)
+    dice = _safe_divide(numerator, denominator, zero_division=zero_division)
     if average == "macro":
         dice = torch.mean(dice, dim=-1)
     elif average == "weighted" and support is not None:
-        weights = _safe_divide(support, torch.sum(support, dim=-1, keepdim=True), zero_division=1.0)
+        weights = _safe_divide(support, torch.sum(support, dim=-1, keepdim=True), zero_division=zero_division)
         dice = torch.sum(dice * weights, dim=-1)
     return dice
 

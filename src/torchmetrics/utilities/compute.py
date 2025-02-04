@@ -11,11 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from torch import Tensor
 from typing_extensions import Literal
+
+from torchmetrics.utilities import rank_zero_warn
 
 
 def _safe_matmul(x: Tensor, y: Tensor) -> Tensor:
@@ -44,7 +46,11 @@ def _safe_xlogy(x: Tensor, y: Tensor) -> Tensor:
     return res
 
 
-def _safe_divide(num: Tensor, denom: Tensor, zero_division: float = 0.0) -> Tensor:
+def _safe_divide(
+    num: Tensor,
+    denom: Tensor,
+    zero_division: Union[float, Literal["warn", "nan"]] = 0.0,
+) -> Tensor:
     """Safe division, by preventing division by zero.
 
     Function will cast to float if input is not already to secure backwards compatibility.
@@ -64,8 +70,13 @@ def _safe_divide(num: Tensor, denom: Tensor, zero_division: float = 0.0) -> Tens
     """
     num = num if num.is_floating_point() else num.float()
     denom = denom if denom.is_floating_point() else denom.float()
-    zero_division_tensor = torch.tensor(zero_division, dtype=num.dtype).to(num.device, non_blocking=True)
-    return torch.where(denom != 0, num / denom, zero_division_tensor)
+    if isinstance(zero_division, float) or zero_division == "warn":
+        if zero_division == "warn" and torch.any(denom == 0):
+            rank_zero_warn("Detected zero division in _safe_divide. Setting 0/0 to 0.0")
+        zero_division = 0.0 if zero_division == "warn" else zero_division
+        zero_division_tensor = torch.tensor(zero_division, dtype=num.dtype).to(num.device, non_blocking=True)
+        return torch.where(denom != 0, num / denom, zero_division_tensor)
+    return torch.true_divide(num, denom)
 
 
 def _adjust_weights_safe_divide(

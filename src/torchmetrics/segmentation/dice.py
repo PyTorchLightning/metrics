@@ -68,6 +68,8 @@ class DiceScore(Metric):
             or ``None``. This determines how to average the dice score across different classes.
         input_format: What kind of input the function receives. Choose between ``"one-hot"`` for one-hot encoded tensors
             or ``"index"`` for index tensors
+        zero_division: The value to return when there is a division by zero. Options are 1.0, 0.0, "warn" or "nan".
+            Setting it to "warn" behaves like 0.0 but will also create a warning.
         kwargs: Additional keyword arguments, see :ref:`Metric kwargs` for more info.
 
     Raises:
@@ -110,14 +112,16 @@ class DiceScore(Metric):
         include_background: bool = True,
         average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
         input_format: Literal["one-hot", "index"] = "one-hot",
+        zero_division: Union[float, Literal["warn", "nan"]] = 0.0,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        _dice_score_validate_args(num_classes, include_background, average, input_format)
+        _dice_score_validate_args(num_classes, include_background, average, input_format, zero_division)
         self.num_classes = num_classes
         self.include_background = include_background
         self.average = average
         self.input_format = input_format
+        self.zero_division = zero_division
 
         num_classes = num_classes - 1 if not include_background else num_classes
         self.add_state("numerator", [], dist_reduce_fx="cat")
@@ -140,7 +144,8 @@ class DiceScore(Metric):
             dim_zero_cat(self.denominator),
             self.average,
             support=dim_zero_cat(self.support) if self.average == "weighted" else None,
-        ).mean(dim=0)
+            zero_division=self.zero_division,
+        ).nanmean(dim=0)
 
     def plot(self, val: Union[Tensor, Sequence[Tensor], None] = None, ax: Optional[_AX_TYPE] = None) -> _PLOT_OUT_TYPE:
         """Plot a single or multiple values from the metric.
