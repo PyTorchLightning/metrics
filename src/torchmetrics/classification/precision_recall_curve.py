@@ -174,6 +174,8 @@ class BinaryPrecisionRecallCurve(Metric):
     def compute(self) -> tuple[Tensor, Tensor, Tensor]:
         """Compute metric."""
         if self.thresholds is None:
+            if not self.preds or not self.target:
+                return torch.tensor([]), torch.tensor([]), torch.tensor([])
             state = (torch.cat(self.preds), torch.cat(self.target))
             self.preds.clear()
             self.target.clear()
