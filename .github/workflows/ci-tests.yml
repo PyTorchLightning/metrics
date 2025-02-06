@@ -52,14 +52,14 @@ jobs:
           - { os: "macOS-13", python-version: "3.10", pytorch-version: "2.0.1" }
           # using the ARM based M1 machine
           - { os: "macOS-14", python-version: "3.10", pytorch-version: "2.0.1" }
-          - { os: "macOS-14", python-version: "3.12", pytorch-version: "2.5.0" }
+          - { os: "macOS-14", python-version: "3.12", pytorch-version: "2.6.0" }
           # some windows
           - { os: "windows-2022", python-version: "3.10", pytorch-version: "2.0.1" }
-          - { os: "windows-2022", python-version: "3.12", pytorch-version: "2.5.0" }
+          - { os: "windows-2022", python-version: "3.12", pytorch-version: "2.6.0" }
           # Future released version
-          - { os: "ubuntu-22.04", python-version: "3.11", pytorch-version: "2.6.0" }
-          - { os: "macOS-14", python-version: "3.11", pytorch-version: "2.6.0" }
-          - { os: "windows-2022", python-version: "3.11", pytorch-version: "2.6.0" }
+          - { os: "ubuntu-22.04", python-version: "3.11", pytorch-version: "2.7.0" }
+          - { os: "macOS-14", python-version: "3.11", pytorch-version: "2.7.0" }
+          - { os: "windows-2022", python-version: "3.11", pytorch-version: "2.7.0" }
     env:
       FREEZE_REQUIREMENTS: ${{ ! (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/')) }}
       TOKENIZERS_PARALLELISM: false
@@ -104,7 +104,7 @@ jobs:
           cache-references: true
 
       - name: Switch to PT test URL
-        if: ${{ matrix.pytorch-version == '2.6.0' }}
+        if: ${{ matrix.pytorch-version == '2.7.0' }}
         run: echo 'PIP_EXTRA_INDEX_URL=--extra-index-url https://download.pytorch.org/whl/test/cpu/' >> $GITHUB_ENV
       - name: Install pkg
         timeout-minutes: 25
