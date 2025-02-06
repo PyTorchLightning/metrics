@@ -5,4 +5,4 @@ pandas >1.4.0, <=2.2.3
 netcal >1.0.0, <1.4.0 # calibration_error
 numpy <2.3.0
 fairlearn # group_fairness
-PyTDC ==0.4.1 ; python_version <"3.12"  # locauc, temporal_dependency
+PyTDC ==1.1.12  # locauc, temporal_dependency
