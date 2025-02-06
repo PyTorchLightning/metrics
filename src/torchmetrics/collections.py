@@ -315,10 +315,12 @@ class MetricCollection(ModuleDict):
                 return False
 
             if isinstance(state1, Tensor) and isinstance(state2, Tensor):
-                return state1.shape == state2.shape and allclose(state1, state2)
+                if not (state1.shape == state2.shape and allclose(state1, state2)):
+                    return False
 
             if isinstance(state1, list) and isinstance(state2, list):
-                return all(s1.shape == s2.shape and allclose(s1, s2) for s1, s2 in zip(state1, state2))
+                if not (all(s1.shape == s2.shape and allclose(s1, s2) for s1, s2 in zip(state1, state2))):
+                    return False
 
         return True
 
