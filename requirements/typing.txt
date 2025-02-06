@@ -1,5 +1,5 @@
 mypy ==1.14.1
-torch ==2.5.1
+torch ==2.6.0
 
 types-PyYAML
 types-emoji
