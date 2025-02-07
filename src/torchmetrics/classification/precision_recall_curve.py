@@ -178,8 +178,8 @@ class BinaryPrecisionRecallCurve(Metric):
                 state = (torch.cat(self.preds), torch.cat(self.target))
                 self.preds.clear()
                 self.target.clear()
-            return _binary_precision_recall_curve_compute(state, self.thresholds)
-
+                return _binary_precision_recall_curve_compute(state, self.thresholds)
+            return torch.tensor([]), torch.tensor([]), torch.tensor([])
         state = self.confmat
         precision, recall, thresholds = _binary_precision_recall_curve_compute(state, self.thresholds)
         self.confmat.zero_()
