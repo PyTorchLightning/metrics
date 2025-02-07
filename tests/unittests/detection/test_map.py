@@ -48,7 +48,7 @@ def _generate_coco_inputs(iou_type):
     and should therefore correspond directly to the result on the webpage
 
     """
-    batched_preds, batched_target = MeanAveragePrecision.coco_to_tm(
+    batched_preds, batched_target = MeanAveragePrecision().coco_to_tm(
         _DETECTION_BBOX if iou_type == "bbox" else _DETECTION_SEGM, _DETECTION_VAL, iou_type
     )
 
@@ -74,7 +74,7 @@ def test_tm_to_coco(tmpdir, iou_type, backend):
     for bp, bt in zip(preds, target):
         metric.update(bp, bt)
     metric.tm_to_coco(f"{tmpdir}/tm_map_input")
-    preds_2, target_2 = MeanAveragePrecision.coco_to_tm(
+    preds_2, target_2 = MeanAveragePrecision().coco_to_tm(
         f"{tmpdir}/tm_map_input_preds.json",
         f"{tmpdir}/tm_map_input_target.json",
         iou_type=iou_type,
@@ -246,7 +246,7 @@ def test_compare_both_same_time(tmpdir, backend):
     combined = [{**box, **seg} for box, seg in zip(boxes, segmentations)]
     with open(f"{tmpdir}/combined.json", "w") as f:
         json.dump(combined, f)
-    batched_preds, batched_target = MeanAveragePrecision.coco_to_tm(
+    batched_preds, batched_target = MeanAveragePrecision().coco_to_tm(
         f"{tmpdir}/combined.json", _DETECTION_VAL, iou_type=["bbox", "segm"]
     )
     batched_preds = [batched_preds[10 * i : 10 * (i + 1)] for i in range(10)]

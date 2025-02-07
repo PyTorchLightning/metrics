@@ -13,9 +13,7 @@
 # limitations under the License.
 import contextlib
 import io
-import json
 from collections.abc import Sequence
-from types import ModuleType
 from typing import Any, Callable, ClassVar, List, Optional, Union
 
 import numpy as np
@@ -25,7 +23,7 @@ from torch import Tensor
 from torch import distributed as dist
 from typing_extensions import Literal
 
-from torchmetrics.detection.helpers import _fix_empty_tensors, _input_validator, _validate_iou_type_arg
+from torchmetrics.detection.helpers import CocoBackend, _fix_empty_tensors, _input_validator, _validate_iou_type_arg
 from torchmetrics.metric import Metric
 from torchmetrics.utilities import rank_zero_warn
 from torchmetrics.utilities.imports import (
@@ -46,32 +44,6 @@ if not (_PYCOCOTOOLS_AVAILABLE or _FASTER_COCO_EVAL_AVAILABLE):
         "MeanAveragePrecision.tm_to_coco",
         "MeanAveragePrecision.coco_to_tm",
     ]
-
-
-def _load_backend_tools(backend: Literal["pycocotools", "faster_coco_eval"]) -> tuple[object, object, ModuleType]:
-    """Load the backend tools for the given backend."""
-    if backend == "pycocotools":
-        if not _PYCOCOTOOLS_AVAILABLE:
-            raise ModuleNotFoundError(
-                "Backend `pycocotools` in metric `MeanAveragePrecision`  metric requires that `pycocotools` is"
-                " installed. Please install with `pip install pycocotools` or `pip install torchmetrics[detection]`"
-            )
-        import pycocotools.mask as mask_utils
-        from pycocotools.coco import COCO
-        from pycocotools.cocoeval import COCOeval
-
-        return COCO, COCOeval, mask_utils
-
-    if not _FASTER_COCO_EVAL_AVAILABLE:
-        raise ModuleNotFoundError(
-            "Backend `faster_coco_eval` in metric `MeanAveragePrecision`  metric requires that `faster-coco-eval` is"
-            " installed. Please install with `pip install faster-coco-eval`."
-        )
-    from faster_coco_eval import COCO
-    from faster_coco_eval import COCOeval_faster as COCOeval
-    from faster_coco_eval.core import mask as mask_utils
-
-    return COCO, COCOeval, mask_utils
 
 
 class MeanAveragePrecision(Metric):
@@ -365,9 +337,7 @@ class MeanAveragePrecision(Metric):
         "metric_state",
         "_update_called",
         # below is added for specifically for this metric
-        "coco",
-        "cocoeval",
-        "mask_utils",
+        "_coco_backend",
     ]
 
     def __init__(
@@ -441,11 +411,7 @@ class MeanAveragePrecision(Metric):
             raise ValueError(f"Expected argument `average` to be one of ('macro', 'micro') but got {average}")
         self.average = average
 
-        if backend not in ("pycocotools", "faster_coco_eval"):
-            raise ValueError(
-                f"Expected argument `backend` to be one of ('pycocotools', 'faster_coco_eval') but got {backend}"
-            )
-        self.backend = backend
+        self._coco_backend = CocoBackend(backend)
 
         self.add_state("detection_box", default=[], dist_reduce_fx=None)
         self.add_state("detection_mask", default=[], dist_reduce_fx=None)
@@ -457,23 +423,86 @@ class MeanAveragePrecision(Metric):
         self.add_state("groundtruth_crowds", default=[], dist_reduce_fx=None)
         self.add_state("groundtruth_area", default=[], dist_reduce_fx=None)
 
-    @property
-    def coco(self) -> object:
-        """Returns the coco module for the given backend, done in this way to make metric picklable."""
-        coco, _, _ = _load_backend_tools(self.backend)
-        return coco
+    def tm_to_coco(self, name: str = "tm_map_input") -> None:
+        """Utility function for converting the input for this metric to coco format and saving it to a json file.
 
-    @property
-    def cocoeval(self) -> object:
-        """Returns the coco eval module for the given backend, done in this way to make metric picklable."""
-        _, cocoeval, _ = _load_backend_tools(self.backend)
-        return cocoeval
+        This function should be used after calling `.update(...)` or `.forward(...)` on all data that should be written
+        to the file, as the input is then internally cached. The function then converts to information to coco format
+        a writes it to json files.
 
-    @property
-    def mask_utils(self) -> object:
-        """Returns the mask utils object for the given backend, done in this way to make metric picklable."""
-        _, _, mask_utils = _load_backend_tools(self.backend)
-        return mask_utils
+        Args:
+            name: Name of the output file, which will be appended with "_preds.json" and "_target.json"
+
+        Example:
+            >>> from torch import tensor
+            >>> from torchmetrics.detection import MeanAveragePrecision
+            >>> preds = [
+            ...   dict(
+            ...     boxes=tensor([[258.0, 41.0, 606.0, 285.0]]),
+            ...     scores=tensor([0.536]),
+            ...     labels=tensor([0]),
+            ...   )
+            ... ]
+            >>> target = [
+            ...   dict(
+            ...     boxes=tensor([[214.0, 41.0, 562.0, 285.0]]),
+            ...     labels=tensor([0]),
+            ...   )
+            ... ]
+            >>> metric = MeanAveragePrecision(iou_type="bbox")
+            >>> metric.update(preds, target)
+            >>> metric.tm_to_coco("tm_map_input")
+
+        """
+        self._coco_backend.tm_to_coco(
+            self.groundtruth_labels,
+            self.groundtruth_box,
+            self.groundtruth_mask,
+            self.groundtruth_crowds,
+            self.groundtruth_area,
+            self.detection_labels,
+            self.detection_box,
+            self.detection_mask,
+            self.detection_scores,
+            name,
+            self.iou_type,
+        )
+
+    def coco_to_tm(
+        self,
+        coco_preds: str,
+        coco_target: str,
+        iou_type: tuple[str] = ("bbox",),
+        backend: Literal["pycocotools", "faster_coco_eval"] = "pycocotools",
+    ) -> tuple[list[dict[str, Tensor]], list[dict[str, Tensor]]]:
+        """Utility function for converting .json coco format files to the input format of this metric.
+
+        The function accepts a file for the predictions and a file for the target in coco format and converts them to
+        a list of dictionaries containing the boxes, labels and scores in the input format of this metric.
+
+        Args:
+            coco_preds: Path to the json file containing the predictions in coco format
+            coco_target: Path to the json file containing the targets in coco format
+            iou_type: Type of input, either `bbox` for bounding boxes or `segm` for segmentation masks
+            backend: Backend to use for the conversion. Either `pycocotools` or `faster_coco_eval`.
+
+        Returns:
+            A tuple containing the predictions and targets in the input format of this metric. Each element of the
+            tuple is a list of dictionaries containing the boxes, labels and scores.
+
+        Example:
+            >>> # File formats are defined at https://cocodataset.org/#format-data
+            >>> # Example files can be found at
+            >>> # https://github.com/cocodataset/cocoapi/tree/master/results
+            >>> from torchmetrics.detection import MeanAveragePrecision
+            >>> preds, target = MeanAveragePrecision.coco_to_tm(
+            ...   "instances_val2014_fakebbox100_results.json",
+            ...   "val2014_fake_eval_res.txt.json"
+            ...   iou_type="bbox"
+            ... )  # doctest: +SKIP
+
+        """
+        return self._coco_backend.coco_to_tm(coco_preds, coco_target, iou_type, backend)
 
     def update(self, preds: list[dict[str, Tensor]], target: list[dict[str, Tensor]]) -> None:
         """Update metric state.
@@ -520,7 +549,19 @@ class MeanAveragePrecision(Metric):
 
     def compute(self) -> dict:
         """Computes the metric."""
-        coco_preds, coco_target = self._get_coco_datasets(average=self.average)
+        coco_preds, coco_target = self._coco_backend._get_coco_datasets(
+            self.groundtruth_labels,
+            self.groundtruth_box,
+            self.groundtruth_mask,
+            self.groundtruth_crowds,
+            self.groundtruth_area,
+            self.detection_labels,
+            self.detection_box,
+            self.detection_mask,
+            self.detection_scores,
+            self.iou_type,
+            average=self.average,
+        )
 
         result_dict = {}
         with contextlib.redirect_stdout(io.StringIO()):
@@ -533,9 +574,13 @@ class MeanAveragePrecision(Metric):
                         anno["area"] = anno[f"area_{i_type}"]
 
                 if len(coco_preds.imgs) == 0 or len(coco_target.imgs) == 0:
-                    result_dict.update(self._coco_stats_to_tensor_dict(12 * [-1.0], prefix=prefix))
+                    result_dict.update(
+                        self._coco_backend._coco_stats_to_tensor_dict(
+                            12 * [-1.0], prefix=prefix, max_detection_thresholds=self.max_detection_thresholds
+                        )
+                    )
                 else:
-                    coco_eval = self.cocoeval(coco_target, coco_preds, iouType=i_type)  # type: ignore[operator]
+                    coco_eval = self._coco_backend.cocoeval(coco_target, coco_preds, iouType=i_type)  # type: ignore[operator]
                     coco_eval.params.iouThrs = np.array(self.iou_thresholds, dtype=np.float64)
                     coco_eval.params.recThrs = np.array(self.rec_thresholds, dtype=np.float64)
                     coco_eval.params.maxDets = self.max_detection_thresholds
@@ -544,7 +589,11 @@ class MeanAveragePrecision(Metric):
                     coco_eval.accumulate()
                     coco_eval.summarize()
                     stats = coco_eval.stats
-                    result_dict.update(self._coco_stats_to_tensor_dict(stats, prefix=prefix))
+                    result_dict.update(
+                        self._coco_backend._coco_stats_to_tensor_dict(
+                            stats, prefix=prefix, max_detection_thresholds=self.max_detection_thresholds
+                        )
+                    )
 
                     summary = {}
                     if self.extended_summary:
@@ -562,8 +611,20 @@ class MeanAveragePrecision(Metric):
                     if self.class_metrics:
                         # regardless of average method, reinitialize dataset to get rid of internal state which can
                         # lead to wrong results when evaluating per class
-                        coco_preds, coco_target = self._get_coco_datasets(average="macro")
-                        coco_eval = self.cocoeval(coco_target, coco_preds, iouType=i_type)  # type: ignore[operator]
+                        coco_preds, coco_target = self._coco_backend._get_coco_datasets(
+                            self.groundtruth_labels,
+                            self.groundtruth_box,
+                            self.groundtruth_mask,
+                            self.groundtruth_crowds,
+                            self.groundtruth_area,
+                            self.detection_labels,
+                            self.detection_box,
+                            self.detection_mask,
+                            self.detection_scores,
+                            self.iou_type,
+                            average="macro",
+                        )
+                        coco_eval = self._coco_backend.cocoeval(coco_target, coco_preds, iouType=i_type)  # type: ignore[operator]
                         coco_eval.params.iouThrs = np.array(self.iou_thresholds, dtype=np.float64)
                         coco_eval.params.recThrs = np.array(self.rec_thresholds, dtype=np.float64)
                         coco_eval.params.maxDets = self.max_detection_thresholds
@@ -597,233 +658,6 @@ class MeanAveragePrecision(Metric):
 
         return result_dict
 
-    def _get_coco_datasets(self, average: Literal["macro", "micro"]) -> tuple[object, object]:
-        """Returns the coco datasets for the target and the predictions."""
-        if average == "micro":
-            # for micro averaging we set everything to be the same class
-            groundtruth_labels = apply_to_collection(self.groundtruth_labels, Tensor, lambda x: torch.zeros_like(x))
-            detection_labels = apply_to_collection(self.detection_labels, Tensor, lambda x: torch.zeros_like(x))
-        else:
-            groundtruth_labels = self.groundtruth_labels
-            detection_labels = self.detection_labels
-
-        coco_target, coco_preds = self.coco(), self.coco()  # type: ignore[operator]
-
-        coco_target.dataset = self._get_coco_format(
-            labels=groundtruth_labels,
-            boxes=self.groundtruth_box if len(self.groundtruth_box) > 0 else None,
-            masks=self.groundtruth_mask if len(self.groundtruth_mask) > 0 else None,
-            crowds=self.groundtruth_crowds,
-            area=self.groundtruth_area,
-        )
-        coco_preds.dataset = self._get_coco_format(
-            labels=detection_labels,
-            boxes=self.detection_box if len(self.detection_box) > 0 else None,
-            masks=self.detection_mask if len(self.detection_mask) > 0 else None,
-            scores=self.detection_scores,
-        )
-
-        with contextlib.redirect_stdout(io.StringIO()):
-            coco_target.createIndex()
-            coco_preds.createIndex()
-
-        return coco_preds, coco_target
-
-    def _coco_stats_to_tensor_dict(self, stats: list[float], prefix: str) -> dict[str, Tensor]:
-        """Converts the output of COCOeval.stats to a dict of tensors."""
-        mdt = self.max_detection_thresholds
-        return {
-            f"{prefix}map": torch.tensor([stats[0]], dtype=torch.float32),
-            f"{prefix}map_50": torch.tensor([stats[1]], dtype=torch.float32),
-            f"{prefix}map_75": torch.tensor([stats[2]], dtype=torch.float32),
-            f"{prefix}map_small": torch.tensor([stats[3]], dtype=torch.float32),
-            f"{prefix}map_medium": torch.tensor([stats[4]], dtype=torch.float32),
-            f"{prefix}map_large": torch.tensor([stats[5]], dtype=torch.float32),
-            f"{prefix}mar_{mdt[0]}": torch.tensor([stats[6]], dtype=torch.float32),
-            f"{prefix}mar_{mdt[1]}": torch.tensor([stats[7]], dtype=torch.float32),
-            f"{prefix}mar_{mdt[2]}": torch.tensor([stats[8]], dtype=torch.float32),
-            f"{prefix}mar_small": torch.tensor([stats[9]], dtype=torch.float32),
-            f"{prefix}mar_medium": torch.tensor([stats[10]], dtype=torch.float32),
-            f"{prefix}mar_large": torch.tensor([stats[11]], dtype=torch.float32),
-        }
-
-    @staticmethod
-    def coco_to_tm(
-        coco_preds: str,
-        coco_target: str,
-        iou_type: Union[Literal["bbox", "segm"], list[str]] = "bbox",
-        backend: Literal["pycocotools", "faster_coco_eval"] = "pycocotools",
-    ) -> tuple[list[dict[str, Tensor]], list[dict[str, Tensor]]]:
-        """Utility function for converting .json coco format files to the input format of this metric.
-
-        The function accepts a file for the predictions and a file for the target in coco format and converts them to
-        a list of dictionaries containing the boxes, labels and scores in the input format of this metric.
-
-        Args:
-            coco_preds: Path to the json file containing the predictions in coco format
-            coco_target: Path to the json file containing the targets in coco format
-            iou_type: Type of input, either `bbox` for bounding boxes or `segm` for segmentation masks
-            backend: Backend to use for the conversion. Either `pycocotools` or `faster_coco_eval`.
-
-        Returns:
-            A tuple containing the predictions and targets in the input format of this metric. Each element of the
-            tuple is a list of dictionaries containing the boxes, labels and scores.
-
-        Example:
-            >>> # File formats are defined at https://cocodataset.org/#format-data
-            >>> # Example files can be found at
-            >>> # https://github.com/cocodataset/cocoapi/tree/master/results
-            >>> from torchmetrics.detection import MeanAveragePrecision
-            >>> preds, target = MeanAveragePrecision.coco_to_tm(
-            ...   "instances_val2014_fakebbox100_results.json",
-            ...   "val2014_fake_eval_res.txt.json"
-            ...   iou_type="bbox"
-            ... )  # doctest: +SKIP
-
-        """
-        iou_type = _validate_iou_type_arg(iou_type)  # type: ignore[arg-type]
-        coco, _, _ = _load_backend_tools(backend)
-
-        with contextlib.redirect_stdout(io.StringIO()):
-            gt = coco(coco_target)  # type: ignore[operator]
-            dt = gt.loadRes(coco_preds)
-
-        gt_dataset = gt.dataset["annotations"]
-        dt_dataset = dt.dataset["annotations"]
-
-        target: dict = {}
-        for t in gt_dataset:
-            if t["image_id"] not in target:
-                target[t["image_id"]] = {
-                    "labels": [],
-                    "iscrowd": [],
-                    "area": [],
-                }
-                if "bbox" in iou_type:
-                    target[t["image_id"]]["boxes"] = []
-                if "segm" in iou_type:
-                    target[t["image_id"]]["masks"] = []
-
-            if "bbox" in iou_type:
-                target[t["image_id"]]["boxes"].append(t["bbox"])
-            if "segm" in iou_type:
-                target[t["image_id"]]["masks"].append(gt.annToMask(t))
-            target[t["image_id"]]["labels"].append(t["category_id"])
-            target[t["image_id"]]["iscrowd"].append(t["iscrowd"])
-            target[t["image_id"]]["area"].append(t["area"])
-
-        preds: dict = {}
-        for p in dt_dataset:
-            if p["image_id"] not in preds:
-                preds[p["image_id"]] = {"scores": [], "labels": []}
-                if "bbox" in iou_type:
-                    preds[p["image_id"]]["boxes"] = []
-                if "segm" in iou_type:
-                    preds[p["image_id"]]["masks"] = []
-            if "bbox" in iou_type:
-                preds[p["image_id"]]["boxes"].append(p["bbox"])
-            if "segm" in iou_type:
-                preds[p["image_id"]]["masks"].append(gt.annToMask(p))
-            preds[p["image_id"]]["scores"].append(p["score"])
-            preds[p["image_id"]]["labels"].append(p["category_id"])
-        for k in target:  # add empty predictions for images without predictions
-            if k not in preds:
-                preds[k] = {"scores": [], "labels": []}
-                if "bbox" in iou_type:
-                    preds[k]["boxes"] = []
-                if "segm" in iou_type:
-                    preds[k]["masks"] = []
-
-        batched_preds, batched_target = [], []
-        for key in target:
-            bp = {
-                "scores": torch.tensor(preds[key]["scores"], dtype=torch.float32),
-                "labels": torch.tensor(preds[key]["labels"], dtype=torch.int32),
-            }
-            if "bbox" in iou_type:
-                bp["boxes"] = torch.tensor(np.array(preds[key]["boxes"]), dtype=torch.float32)
-            if "segm" in iou_type:
-                bp["masks"] = torch.tensor(np.array(preds[key]["masks"]), dtype=torch.uint8)
-            batched_preds.append(bp)
-
-            bt = {
-                "labels": torch.tensor(target[key]["labels"], dtype=torch.int32),
-                "iscrowd": torch.tensor(target[key]["iscrowd"], dtype=torch.int32),
-                "area": torch.tensor(target[key]["area"], dtype=torch.float32),
-            }
-            if "bbox" in iou_type:
-                bt["boxes"] = torch.tensor(target[key]["boxes"], dtype=torch.float32)
-            if "segm" in iou_type:
-                bt["masks"] = torch.tensor(np.array(target[key]["masks"]), dtype=torch.uint8)
-            batched_target.append(bt)
-
-        return batched_preds, batched_target
-
-    def tm_to_coco(self, name: str = "tm_map_input") -> None:
-        """Utility function for converting the input for this metric to coco format and saving it to a json file.
-
-        This function should be used after calling `.update(...)` or `.forward(...)` on all data that should be written
-        to the file, as the input is then internally cached. The function then converts to information to coco format
-        a writes it to json files.
-
-        Args:
-            name: Name of the output file, which will be appended with "_preds.json" and "_target.json"
-
-        Example:
-            >>> from torch import tensor
-            >>> from torchmetrics.detection import MeanAveragePrecision
-            >>> preds = [
-            ...   dict(
-            ...     boxes=tensor([[258.0, 41.0, 606.0, 285.0]]),
-            ...     scores=tensor([0.536]),
-            ...     labels=tensor([0]),
-            ...   )
-            ... ]
-            >>> target = [
-            ...   dict(
-            ...     boxes=tensor([[214.0, 41.0, 562.0, 285.0]]),
-            ...     labels=tensor([0]),
-            ...   )
-            ... ]
-            >>> metric = MeanAveragePrecision(iou_type="bbox")
-            >>> metric.update(preds, target)
-            >>> metric.tm_to_coco("tm_map_input")
-
-        """
-        target_dataset = self._get_coco_format(
-            labels=self.groundtruth_labels,
-            boxes=self.groundtruth_box if len(self.groundtruth_box) > 0 else None,
-            masks=self.groundtruth_mask if len(self.groundtruth_mask) > 0 else None,
-            crowds=self.groundtruth_crowds,
-            area=self.groundtruth_area,
-        )
-        preds_dataset = self._get_coco_format(
-            labels=self.detection_labels,
-            boxes=self.detection_box if len(self.detection_box) > 0 else None,
-            masks=self.detection_mask if len(self.detection_mask) > 0 else None,
-            scores=self.detection_scores,
-        )
-        if "segm" in self.iou_type:
-            # the rle masks needs to be decoded to be written to a file
-            preds_dataset["annotations"] = apply_to_collection(
-                preds_dataset["annotations"], dtype=bytes, function=lambda x: x.decode("utf-8")
-            )
-            preds_dataset["annotations"] = apply_to_collection(
-                preds_dataset["annotations"],
-                dtype=np.uint32,
-                function=lambda x: int(x),
-            )
-            target_dataset = apply_to_collection(target_dataset, dtype=bytes, function=lambda x: x.decode("utf-8"))
-
-        preds_json = json.dumps(preds_dataset["annotations"], indent=4)
-        target_json = json.dumps(target_dataset, indent=4)
-
-        with open(f"{name}_preds.json", "w") as f:
-            f.write(preds_json)
-
-        with open(f"{name}_target.json", "w") as f:
-            f.write(target_json)
-
     def _get_safe_item_values(
         self, item: dict[str, Any], warn: bool = False
     ) -> tuple[Optional[Tensor], Optional[tuple]]:
@@ -848,7 +682,7 @@ class MeanAveragePrecision(Metric):
         if "segm" in self.iou_type:
             masks = []
             for i in item["masks"].cpu().numpy():
-                rle = self.mask_utils.encode(np.asfortranarray(i))
+                rle = self._coco_backend.mask_utils.encode(np.asfortranarray(i))
                 masks.append((tuple(rle["size"]), rle["counts"]))
             output[1] = tuple(masks)  # type: ignore[call-overload]
         if warn and (
@@ -863,99 +697,6 @@ class MeanAveragePrecision(Metric):
         if len(self.detection_labels) > 0 or len(self.groundtruth_labels) > 0:
             return torch.cat(self.detection_labels + self.groundtruth_labels).unique().cpu().tolist()
         return []
-
-    def _get_coco_format(
-        self,
-        labels: List[Tensor],
-        boxes: Optional[List[Tensor]] = None,
-        masks: Optional[List[Tensor]] = None,
-        scores: Optional[List[Tensor]] = None,
-        crowds: Optional[List[Tensor]] = None,
-        area: Optional[List[Tensor]] = None,
-    ) -> dict:
-        """Transforms and returns all cached targets or predictions in COCO format.
-
-        Format is defined at
-        https://cocodataset.org/#format-data
-
-        """
-        images = []
-        annotations = []
-        annotation_id = 1  # has to start with 1, otherwise COCOEval results are wrong
-
-        for image_id, image_labels in enumerate(labels):
-            if boxes is not None:
-                image_boxes = boxes[image_id]
-                image_boxes = image_boxes.cpu().tolist()
-            if masks is not None:
-                image_masks = masks[image_id]
-                if len(image_masks) == 0 and boxes is None:
-                    continue
-            image_labels = image_labels.cpu().tolist()  # type: ignore[assignment]
-
-            images.append({"id": image_id})
-            if "segm" in self.iou_type and len(image_masks) > 0:
-                images[-1]["height"], images[-1]["width"] = image_masks[0][0][0], image_masks[0][0][1]  # type: ignore[assignment]
-
-            for k, image_label in enumerate(image_labels):
-                if boxes is not None:
-                    image_box = image_boxes[k]
-                if masks is not None and len(image_masks) > 0:
-                    image_mask = image_masks[k]
-                    image_mask = {"size": image_mask[0], "counts": image_mask[1]}
-
-                if "bbox" in self.iou_type and len(image_box) != 4:
-                    raise ValueError(
-                        f"Invalid input box of sample {image_id}, element {k} (expected 4 values, got {len(image_box)})"
-                    )
-
-                if not isinstance(image_label, int):
-                    raise ValueError(
-                        f"Invalid input class of sample {image_id}, element {k}"
-                        f" (expected value of type integer, got type {type(image_label)})"
-                    )
-
-                area_stat_box = None
-                area_stat_mask = None
-                if area is not None and area[image_id][k].cpu().tolist() > 0:  # type: ignore[operator]
-                    area_stat = area[image_id][k].cpu().tolist()
-                else:
-                    area_stat = (
-                        self.mask_utils.area(image_mask) if "segm" in self.iou_type else image_box[2] * image_box[3]
-                    )
-                    if len(self.iou_type) > 1:
-                        area_stat_box = image_box[2] * image_box[3]
-                        area_stat_mask = self.mask_utils.area(image_mask)
-
-                annotation = {
-                    "id": annotation_id,
-                    "image_id": image_id,
-                    "area": area_stat,
-                    "category_id": image_label,
-                    "iscrowd": crowds[image_id][k].cpu().tolist() if crowds is not None else 0,
-                }
-                if area_stat_box is not None:
-                    annotation["area_bbox"] = area_stat_box
-                    annotation["area_segm"] = area_stat_mask
-
-                if boxes is not None:
-                    annotation["bbox"] = image_box
-                if masks is not None:
-                    annotation["segmentation"] = image_mask
-
-                if scores is not None:
-                    score = scores[image_id][k].cpu().tolist()
-                    if not isinstance(score, float):
-                        raise ValueError(
-                            f"Invalid input score of sample {image_id}, element {k}"
-                            f" (expected value of type float, got type {type(score)})"
-                        )
-                    annotation["score"] = score
-                annotations.append(annotation)
-                annotation_id += 1
-
-        classes = [{"id": i, "name": str(i)} for i in self._get_classes()]
-        return {"images": images, "annotations": annotations, "categories": classes}
 
     def plot(
         self, val: Optional[Union[dict[str, Tensor], Sequence[dict[str, Tensor]]]] = None, ax: Optional[_AX_TYPE] = None
