@@ -66,11 +66,9 @@ def _mean_iou_update(
 def _mean_iou_compute(
     intersection: Tensor,
     union: Tensor,
-    per_class: bool = False,
 ) -> Tensor:
     """Compute the mean IoU metric."""
-    val = _safe_divide(intersection, union)
-    return val if per_class else torch.mean(val, 1)
+    return _safe_divide(intersection, union)
 
 
 def mean_iou(
@@ -111,4 +109,7 @@ def mean_iou(
     """
     _mean_iou_validate_args(num_classes, include_background, per_class, input_format)
     intersection, union = _mean_iou_update(preds, target, num_classes, include_background, input_format)
-    return _mean_iou_compute(intersection, union, per_class=per_class)
+    score = _mean_iou_compute(intersection, union)
+    valid_classes = union > 0
+    score = score * valid_classes
+    return score if per_class else score.sum(dim=-1) / valid_classes.sum(dim=-1)

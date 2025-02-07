@@ -111,21 +111,23 @@ class MeanIoU(Metric):
         self.input_format = input_format
 
         num_classes = num_classes - 1 if not include_background else num_classes
-        self.add_state("score", default=torch.zeros(num_classes if per_class else 1), dist_reduce_fx="sum")
-        self.add_state("num_batches", default=torch.tensor(0), dist_reduce_fx="sum")
+        self.add_state("score", default=torch.zeros(num_classes), dist_reduce_fx="sum")
+        self.add_state("num_batches", default=torch.zeros(num_classes), dist_reduce_fx="sum")
 
     def update(self, preds: Tensor, target: Tensor) -> None:
         """Update the state with the new data."""
         intersection, union = _mean_iou_update(
             preds, target, self.num_classes, self.include_background, self.input_format
         )
-        score = _mean_iou_compute(intersection, union, per_class=self.per_class)
-        self.score += score.mean(0) if self.per_class else score.mean()
-        self.num_batches += 1
+        score = _mean_iou_compute(intersection, union)
+        # only update for classes that are present (i.e. union > 0)
+        valid_classes = union > 0
+        self.score += (score * valid_classes).sum(dim=0)
+        self.num_batches += valid_classes.sum(dim=0)
 
     def compute(self) -> Tensor:
         """Compute the final Mean Intersection over Union (mIoU)."""
-        return self.score / self.num_batches
+        return self.score / self.num_batches if self.per_class else (self.score / self.num_batches).mean()
 
     def plot(self, val: Union[Tensor, Sequence[Tensor], None] = None, ax: Optional[_AX_TYPE] = None) -> _PLOT_OUT_TYPE:
         """Plot a single or multiple values from the metric.
