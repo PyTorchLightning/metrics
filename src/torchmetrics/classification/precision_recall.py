@@ -749,6 +749,7 @@ class MulticlassRecall(MulticlassStatScores):
             multidim_average=self.multidim_average,
             top_k=self.top_k,
             zero_division=self.zero_division,
+            ignore_index=self.ignore_index,
         )
 
     def plot(

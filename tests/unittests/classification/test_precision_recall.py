@@ -205,6 +205,10 @@ def _reference_sklearn_precision_recall_multiclass(
     if preds.ndim == target.ndim + 1:
         preds = torch.argmax(preds, 1)
 
+    valid_labels = list(range(NUM_CLASSES))
+    if ignore_index is not None:
+        valid_labels = [label for label in valid_labels if label != ignore_index]
+
     if multidim_average == "global":
         preds = preds.numpy().flatten()
         target = target.numpy().flatten()
@@ -213,7 +217,9 @@ def _reference_sklearn_precision_recall_multiclass(
             target,
             preds,
             average=average,
-            labels=list(range(num_classes)) if average is None else None,
+            labels=valid_labels
+            if average in ("macro", "weighted")
+            else (list(range(num_classes)) if average is None else None),
             zero_division=zero_division,
         )
 
@@ -238,7 +244,9 @@ def _reference_sklearn_precision_recall_multiclass(
                 true,
                 pred,
                 average=average,
-                labels=list(range(num_classes)) if average is None else None,
+                labels=valid_labels
+                if average in ("macro", "weighted")
+                else (list(range(num_classes)) if average is None else None),
                 zero_division=zero_division,
             )
         res.append(0.0 if np.isnan(r).any() else r)
@@ -684,6 +692,37 @@ def test_corner_case():
     metric = MulticlassRecall(num_classes=3, average="macro", ignore_index=0)
     res = metric(preds, target)
     assert res == 1.0
+
+
+def test_multiclass_recall_ignore_index():
+    """Issue: https://github.com/Lightning-AI/torchmetrics/issues/2441."""
+    y_true = torch.tensor([0, 0, 1, 1])
+    y_pred = torch.tensor([
+        [0.9, 0.1],
+        [0.9, 0.1],
+        [0.9, 0.1],
+        [0.1, 0.9],
+    ])
+
+    # Test with ignore_index=0 and average="macro"
+    metric_ignore_0 = MulticlassRecall(num_classes=2, ignore_index=0, average="macro")
+    res_ignore_0 = metric_ignore_0(y_pred, y_true)
+    assert res_ignore_0 == 0.5, f"Expected 0.5, but got {res_ignore_0}"
+
+    # Test with ignore_index=1 and average="macro"
+    metric_ignore_1 = MulticlassRecall(num_classes=2, ignore_index=1, average="macro")
+    res_ignore_1 = metric_ignore_1(y_pred, y_true)
+    assert res_ignore_1 == 1.0, f"Expected 1.0, but got {res_ignore_1}"
+
+    # Test with no ignore_index and average="macro"
+    metric_no_ignore = MulticlassRecall(num_classes=2, average="macro")
+    res_no_ignore = metric_no_ignore(y_pred, y_true)
+    assert res_no_ignore == 0.75, f"Expected 0.75, but got {res_no_ignore}"
+
+    # Test with ignore_index=0 and average="none"
+    metric_none = MulticlassRecall(num_classes=2, ignore_index=0, average="none")
+    res_none = metric_none(y_pred, y_true)
+    assert torch.allclose(res_none, torch.tensor([0.0, 0.5])), f"Expected [0.0, 0.5], but got {res_none}"
 
 
 @pytest.mark.parametrize(

@@ -45,6 +45,7 @@ def _precision_recall_reduce(
     multilabel: bool = False,
     top_k: int = 1,
     zero_division: float = 0,
+    ignore_index: Optional[int] = None,
 ) -> Tensor:
     different_stat = fp if stat == "precision" else fn  # this is what differs between the two scores
     if average == "binary":
@@ -56,7 +57,7 @@ def _precision_recall_reduce(
         return _safe_divide(tp, tp + different_stat, zero_division)
 
     score = _safe_divide(tp, tp + different_stat, zero_division)
-    return _adjust_weights_safe_divide(score, average, multilabel, tp, fp, fn, top_k=top_k)
+    return _adjust_weights_safe_divide(score, average, multilabel, tp, fp, fn, top_k=top_k, ignore_index=ignore_index)
 
 
 def binary_precision(
@@ -253,6 +254,7 @@ def multiclass_precision(
         multidim_average=multidim_average,
         top_k=top_k,
         zero_division=zero_division,
+        ignore_index=ignore_index,
     )
 
 
@@ -563,6 +565,7 @@ def multiclass_recall(
         multidim_average=multidim_average,
         top_k=top_k,
         zero_division=zero_division,
+        ignore_index=ignore_index,
     )
 
 
@@ -676,6 +679,7 @@ def multilabel_recall(
         multidim_average=multidim_average,
         multilabel=True,
         zero_division=zero_division,
+        ignore_index=ignore_index,
     )
 
 
