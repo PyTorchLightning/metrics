@@ -65,7 +65,6 @@ class FowlkesMallowsIndex(Metric):
     plot_upper_bound: float = 1.0
     preds: List[Tensor]
     target: List[Tensor]
-    contingency: Tensor
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

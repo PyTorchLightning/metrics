@@ -64,6 +64,7 @@ jobs:
       FREEZE_REQUIREMENTS: ${{ ! (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/')) }}
       TOKENIZERS_PARALLELISM: false
       TEST_DIRS: ${{ needs.check-diff.outputs.test-dirs }}
+      # PIP_USE_FEATURE: "2020-resolver"
       PIP_EXTRA_INDEX_URL: "--extra-index-url=https://download.pytorch.org/whl/cpu/"
       UNITTEST_TIMEOUT: "" # by default, it is not set
 

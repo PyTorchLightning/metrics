@@ -177,5 +177,6 @@
 .. _Hausdorff Distance: https://en.wikipedia.org/wiki/Hausdorff_distance
 .. _averaging curve objects: https://scikit-learn.org/stable/auto_examples/model_selection/plot_roc.html
 .. _Procrustes Disparity: https://en.wikipedia.org/wiki/Procrustes_analysis
+.. _Cluster Accuracy: https://arxiv.org/abs/2206.07579
 .. _Log AUC: https://pubmed.ncbi.nlm.nih.gov/20735049/
 .. _Negative Predictive Value: https://en.wikipedia.org/wiki/Positive_and_negative_predictive_values

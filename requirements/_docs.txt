@@ -18,12 +18,13 @@ pydantic > 1.0.0, < 3.0.0
 
 # integrations
 -r _integrate.txt
--r visual.txt
 -r audio.txt
+-r clustering.txt
 -r detection.txt
 -r image.txt
 -r multimodal.txt
 -r text.txt
+-r visual.txt
 
 # Gallery extra requirements
 # --------------------------

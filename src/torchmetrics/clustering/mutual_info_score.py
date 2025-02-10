@@ -70,7 +70,6 @@ class MutualInfoScore(Metric):
     plot_lower_bound: float = 0.0
     preds: List[Tensor]
     target: List[Tensor]
-    contingency: Tensor
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

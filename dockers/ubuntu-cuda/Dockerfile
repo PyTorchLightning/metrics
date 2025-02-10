@@ -92,6 +92,7 @@ RUN \
     python assistant.py replace_str_requirements "onnxruntime" "onnxruntime_gpu" --req_files requirements/audio.txt && \
     # install develop environment
     pip install --no-cache-dir -r requirements/_devel.txt \
+      --extra-index-url="https://download.pytorch.org/whl/cu${CU_VERSION_MM}/" \
       --extra-index-url="https://download.pytorch.org/whl/test/cu${CU_VERSION_MM}" && \
     rm -rf requirements/
 

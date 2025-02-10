@@ -75,7 +75,6 @@ class AdjustedMutualInfoScore(MutualInfoScore):
     plot_upper_bound: float = 1.0
     preds: List[Tensor]
     target: List[Tensor]
-    contingency: Tensor
 
     def __init__(
         self, average_method: Literal["min", "geometric", "arithmetic", "max"] = "arithmetic", **kwargs: Any
