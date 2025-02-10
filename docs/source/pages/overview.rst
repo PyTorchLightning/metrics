@@ -453,7 +453,7 @@ of metrics e.g. computation of confidence intervals by resampling of input data.
 .. testoutput::
     :options: +NORMALIZE_WHITESPACE
 
-    {'mean': tensor(0.1333), 'std': tensor(0.1554)}
+    {'mean': tensor(0.1069), 'std': tensor(0.1180)}
 
 You can see all implemented wrappers under the wrapper section of the API docs.
 

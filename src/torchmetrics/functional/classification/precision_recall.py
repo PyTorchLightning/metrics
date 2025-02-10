@@ -141,7 +141,7 @@ def multiclass_precision(
     preds: Tensor,
     target: Tensor,
     num_classes: int,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     top_k: int = 1,
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
@@ -209,7 +209,7 @@ def multiclass_precision(
         >>> target = tensor([2, 1, 0, 0])
         >>> preds = tensor([2, 1, 0, 1])
         >>> multiclass_precision(preds, target, num_classes=3)
-        tensor(0.8333)
+        tensor(0.7500)
         >>> multiclass_precision(preds, target, num_classes=3, average=None)
         tensor([1.0000, 0.5000, 1.0000])
 
@@ -221,7 +221,7 @@ def multiclass_precision(
         ...                 [0.71, 0.09, 0.20],
         ...                 [0.05, 0.82, 0.13]])
         >>> multiclass_precision(preds, target, num_classes=3)
-        tensor(0.8333)
+        tensor(0.7500)
         >>> multiclass_precision(preds, target, num_classes=3, average=None)
         tensor([1.0000, 0.5000, 1.0000])
 
@@ -230,7 +230,7 @@ def multiclass_precision(
         >>> target = tensor([[[0, 1], [2, 1], [0, 2]], [[1, 1], [2, 0], [1, 2]]])
         >>> preds = tensor([[[0, 2], [2, 0], [0, 1]], [[2, 2], [2, 1], [1, 0]]])
         >>> multiclass_precision(preds, target, num_classes=3, multidim_average='samplewise')
-        tensor([0.3889, 0.2778])
+        tensor([0.5000, 0.3333])
         >>> multiclass_precision(preds, target, num_classes=3, multidim_average='samplewise', average=None)
         tensor([[0.6667, 0.0000, 0.5000],
                 [0.0000, 0.5000, 0.3333]])
@@ -261,7 +261,7 @@ def multilabel_precision(
     target: Tensor,
     num_labels: int,
     threshold: float = 0.5,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
     validate_args: bool = True,
@@ -326,7 +326,7 @@ def multilabel_precision(
         >>> target = tensor([[0, 1, 0], [1, 0, 1]])
         >>> preds = tensor([[0, 0, 1], [1, 0, 1]])
         >>> multilabel_precision(preds, target, num_labels=3)
-        tensor(0.5000)
+        tensor(0.6667)
         >>> multilabel_precision(preds, target, num_labels=3, average=None)
         tensor([1.0000, 0.0000, 0.5000])
 
@@ -335,7 +335,7 @@ def multilabel_precision(
         >>> target = tensor([[0, 1, 0], [1, 0, 1]])
         >>> preds = tensor([[0.11, 0.22, 0.84], [0.73, 0.33, 0.92]])
         >>> multilabel_precision(preds, target, num_labels=3)
-        tensor(0.5000)
+        tensor(0.6667)
         >>> multilabel_precision(preds, target, num_labels=3, average=None)
         tensor([1.0000, 0.0000, 0.5000])
 
@@ -345,7 +345,7 @@ def multilabel_precision(
         >>> preds = tensor([[[0.59, 0.91], [0.91, 0.99], [0.63, 0.04]],
         ...                 [[0.38, 0.04], [0.86, 0.780], [0.45, 0.37]]])
         >>> multilabel_precision(preds, target, num_labels=3, multidim_average='samplewise')
-        tensor([0.3333, 0.0000])
+        tensor([0.4000, 0.0000])
         >>> multilabel_precision(preds, target, num_labels=3, multidim_average='samplewise', average=None)
         tensor([[0.5000, 0.5000, 0.0000],
                 [0.0000, 0.0000, 0.0000]])
@@ -451,7 +451,7 @@ def multiclass_recall(
     preds: Tensor,
     target: Tensor,
     num_classes: int,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     top_k: int = 1,
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
@@ -519,7 +519,7 @@ def multiclass_recall(
         >>> target = tensor([2, 1, 0, 0])
         >>> preds = tensor([2, 1, 0, 1])
         >>> multiclass_recall(preds, target, num_classes=3)
-        tensor(0.8333)
+        tensor(0.7500)
         >>> multiclass_recall(preds, target, num_classes=3, average=None)
         tensor([0.5000, 1.0000, 1.0000])
 
@@ -531,7 +531,7 @@ def multiclass_recall(
         ...                 [0.71, 0.09, 0.20],
         ...                 [0.05, 0.82, 0.13]])
         >>> multiclass_recall(preds, target, num_classes=3)
-        tensor(0.8333)
+        tensor(0.7500)
         >>> multiclass_recall(preds, target, num_classes=3, average=None)
         tensor([0.5000, 1.0000, 1.0000])
 
@@ -540,7 +540,7 @@ def multiclass_recall(
         >>> target = tensor([[[0, 1], [2, 1], [0, 2]], [[1, 1], [2, 0], [1, 2]]])
         >>> preds = tensor([[[0, 2], [2, 0], [0, 1]], [[2, 2], [2, 1], [1, 0]]])
         >>> multiclass_recall(preds, target, num_classes=3, multidim_average='samplewise')
-        tensor([0.5000, 0.2778])
+        tensor([0.5000, 0.3333])
         >>> multiclass_recall(preds, target, num_classes=3, multidim_average='samplewise', average=None)
         tensor([[1.0000, 0.0000, 0.5000],
                 [0.0000, 0.3333, 0.5000]])
@@ -571,7 +571,7 @@ def multilabel_recall(
     target: Tensor,
     num_labels: int,
     threshold: float = 0.5,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
     validate_args: bool = True,

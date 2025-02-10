@@ -220,7 +220,7 @@ def binary_stat_scores(
 def _multiclass_stat_scores_arg_validation(
     num_classes: Optional[int],
     top_k: int = 1,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
     zero_division: float = 0,
@@ -373,7 +373,7 @@ def _multiclass_stat_scores_update(
     target: Tensor,
     num_classes: int,
     top_k: int = 1,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
 ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
@@ -454,7 +454,7 @@ def _multiclass_stat_scores_compute(
     fp: Tensor,
     tn: Tensor,
     fn: Tensor,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     multidim_average: Literal["global", "samplewise"] = "global",
 ) -> Tensor:
     """Stack statistics and compute support also.
@@ -482,7 +482,7 @@ def multiclass_stat_scores(
     preds: Tensor,
     target: Tensor,
     num_classes: int,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     top_k: int = 1,
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
@@ -595,7 +595,7 @@ def multiclass_stat_scores(
 def _multilabel_stat_scores_arg_validation(
     num_labels: int,
     threshold: float = 0.5,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
     zero_division: float = 0,
@@ -719,7 +719,7 @@ def _multilabel_stat_scores_compute(
     fp: Tensor,
     tn: Tensor,
     fn: Tensor,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     multidim_average: Literal["global", "samplewise"] = "global",
 ) -> Tensor:
     """Stack statistics and compute support also.
@@ -746,7 +746,7 @@ def multilabel_stat_scores(
     target: Tensor,
     num_labels: int,
     threshold: float = 0.5,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
     validate_args: bool = True,

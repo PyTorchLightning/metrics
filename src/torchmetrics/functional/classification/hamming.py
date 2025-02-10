@@ -163,7 +163,7 @@ def multiclass_hamming_distance(
     preds: Tensor,
     target: Tensor,
     num_classes: int,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     top_k: int = 1,
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
@@ -231,7 +231,7 @@ def multiclass_hamming_distance(
         >>> target = tensor([2, 1, 0, 0])
         >>> preds = tensor([2, 1, 0, 1])
         >>> multiclass_hamming_distance(preds, target, num_classes=3)
-        tensor(0.1667)
+        tensor(0.2500)
         >>> multiclass_hamming_distance(preds, target, num_classes=3, average=None)
         tensor([0.5000, 0.0000, 0.0000])
 
@@ -243,7 +243,7 @@ def multiclass_hamming_distance(
         ...                 [0.71, 0.09, 0.20],
         ...                 [0.05, 0.82, 0.13]])
         >>> multiclass_hamming_distance(preds, target, num_classes=3)
-        tensor(0.1667)
+        tensor(0.2500)
         >>> multiclass_hamming_distance(preds, target, num_classes=3, average=None)
         tensor([0.5000, 0.0000, 0.0000])
 
@@ -252,7 +252,7 @@ def multiclass_hamming_distance(
         >>> target = tensor([[[0, 1], [2, 1], [0, 2]], [[1, 1], [2, 0], [1, 2]]])
         >>> preds = tensor([[[0, 2], [2, 0], [0, 1]], [[2, 2], [2, 1], [1, 0]]])
         >>> multiclass_hamming_distance(preds, target, num_classes=3, multidim_average='samplewise')
-        tensor([0.5000, 0.7222])
+        tensor([0.5000, 0.6667])
         >>> multiclass_hamming_distance(preds, target, num_classes=3, multidim_average='samplewise', average=None)
         tensor([[0.0000, 1.0000, 0.5000],
                 [1.0000, 0.6667, 0.5000]])
@@ -273,7 +273,7 @@ def multilabel_hamming_distance(
     target: Tensor,
     num_labels: int,
     threshold: float = 0.5,
-    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "macro",
+    average: Optional[Literal["micro", "macro", "weighted", "none"]] = "micro",
     multidim_average: Literal["global", "samplewise"] = "global",
     ignore_index: Optional[int] = None,
     validate_args: bool = True,
