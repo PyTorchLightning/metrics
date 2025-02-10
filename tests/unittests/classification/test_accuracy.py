@@ -191,12 +191,9 @@ def _reference_sklearn_accuracy_multiclass(preds, target, ignore_index, multidim
             return _reference_sklearn_accuracy(target, preds)
         confmat = sk_confusion_matrix(target, preds, labels=list(range(NUM_CLASSES)))
         acc_per_class = confmat.diagonal() / confmat.sum(axis=1)
-        acc_per_class[np.isnan(acc_per_class)] = 0.0
         if average == "macro":
-            acc_per_class = acc_per_class[
-                (np.bincount(preds, minlength=NUM_CLASSES) + np.bincount(target, minlength=NUM_CLASSES)) != 0.0
-            ]
-            return acc_per_class.mean()
+            return np.nanmean(acc_per_class)
+        acc_per_class[np.isnan(acc_per_class)] = 0.0
         if average == "weighted":
             weights = confmat.sum(1)
             return ((weights * acc_per_class) / weights.sum()).sum()

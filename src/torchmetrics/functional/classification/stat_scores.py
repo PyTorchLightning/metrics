@@ -446,6 +446,8 @@ def _multiclass_stat_scores_update(
         fp = confmat.sum(0) - tp
         fn = confmat.sum(1) - tp
         tn = confmat.sum() - (fp + fn + tp)
+        if ignore_index is not None:
+            fp[ignore_index] = 0
     return tp, fp, tn, fn
 
 
