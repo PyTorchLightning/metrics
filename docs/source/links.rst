@@ -179,3 +179,6 @@
 .. _Procrustes Disparity: https://en.wikipedia.org/wiki/Procrustes_analysis
 .. _Log AUC: https://pubmed.ncbi.nlm.nih.gov/20735049/
 .. _Negative Predictive Value: https://en.wikipedia.org/wiki/Positive_and_negative_predictive_values
+.. _ARNIQA: https://arxiv.org/abs/2310.14918
+.. _KonIQ-10k: https://database.mmsp-kn.de/koniq-10k-database.html
+.. _KADID-10k: https://database.mmsp-kn.de/kadid-10k-database.html
